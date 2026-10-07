@@ -25,6 +25,33 @@ export function useMenuData() {
   // Carga inicial
   useEffect(() => {
     async function loadData() {
+      // 1. Intentar cargar desde el endpoint servidor /api/menu (máxima fiabilidad)
+      try {
+        const res = await fetch('/api/menu');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.categorias && json.categorias.length > 0) {
+            setCategorias(json.categorias);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(STORAGE_KEYS.CATEGORIAS, JSON.stringify(json.categorias));
+            }
+          }
+          if (json.productos && json.productos.length > 0) {
+            setProductos(json.productos);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify(json.productos));
+            }
+          }
+          if (json.eventos && json.eventos.length > 0) setEventos(json.eventos);
+          if (json.configTV && json.configTV.length > 0) setConfigTV(json.configTV);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('Error fetching /api/menu, fallback a Supabase directo:', e);
+      }
+
+      // 2. Fallback directo a Supabase
       if (isSupabaseConfigured && supabase) {
         try {
           const { data: dbCats } = await supabase.from('categorias').select('*').order('orden');
@@ -54,8 +81,18 @@ export function useMenuData() {
         const localEvents = localStorage.getItem(STORAGE_KEYS.EVENTOS);
         const localConfig = localStorage.getItem(STORAGE_KEYS.CONFIG_TV);
 
-        if (localProds) setProductos(JSON.parse(localProds));
-        if (localCats) setCategorias(JSON.parse(localCats));
+        // Limpiar rutas locales rotas /images/ que ya no existen
+        const sanitizeImages = (items: any[]) => {
+          return items.map((it) => {
+            if (it.imagen_url && it.imagen_url.startsWith('/images/')) {
+              return { ...it, imagen_url: '' };
+            }
+            return it;
+          });
+        };
+
+        if (localProds) setProductos(sanitizeImages(JSON.parse(localProds)));
+        if (localCats) setCategorias(sanitizeImages(JSON.parse(localCats)));
         if (localEvents) setEventos(JSON.parse(localEvents));
         if (localConfig) setConfigTV(JSON.parse(localConfig));
       } catch (e) {
@@ -93,7 +130,7 @@ export function useMenuData() {
     if (bc) {
       const handleMessage = (event: MessageEvent) => {
         if (event.data?.type === 'UPDATE_ALL') {
-          loadFromLocal();
+          loadData();
         }
       };
       bc.addEventListener('message', handleMessage);
@@ -113,6 +150,17 @@ export function useMenuData() {
       bc?.postMessage({ type: 'UPDATE_ALL' });
     }
 
+    // Guardar vía backend API seguro
+    try {
+      await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateCategoria', data: categoriaActualizada }),
+      });
+    } catch (e) {
+      console.warn('Error saving categoria via /api/menu:', e);
+    }
+
     if (isSupabaseConfigured && supabase) {
       await supabase.from('categorias').update(categoriaActualizada).eq('id', categoriaActualizada.id);
     }
@@ -126,6 +174,17 @@ export function useMenuData() {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify(nuevos));
       bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    // Guardar vía backend API seguro
+    try {
+      await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateProducto', data: productoActualizado }),
+      });
+    } catch (e) {
+      console.warn('Error saving producto via /api/menu:', e);
     }
 
     if (isSupabaseConfigured && supabase) {
@@ -143,6 +202,16 @@ export function useMenuData() {
       bc?.postMessage({ type: 'UPDATE_ALL' });
     }
 
+    try {
+      await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'addProducto', data: nuevo }),
+      });
+    } catch (e) {
+      console.warn('Error adding producto via /api/menu:', e);
+    }
+
     if (isSupabaseConfigured && supabase) {
       await supabase.from('productos').insert(nuevo);
     }
@@ -156,6 +225,16 @@ export function useMenuData() {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify(nuevos));
       bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    try {
+      await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deleteProducto', id }),
+      });
+    } catch (e) {
+      console.warn('Error deleting producto via /api/menu:', e);
     }
 
     if (isSupabaseConfigured && supabase) {

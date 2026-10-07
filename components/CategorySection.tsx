@@ -50,12 +50,13 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
         </div>
 
         {/* 2. SECTION HERO CUTOUT IMAGE (Solo si fue subida por la web) */}
-        {categoria.imagen_url && (
+        {categoria.imagen_url && categoria.imagen_url.trim() !== '' && (
           <div className="relative w-44 h-32 sm:w-52 sm:h-36 my-3 filter drop-shadow-[0_12px_16px_rgba(0,0,0,0.85)]">
             <Image
               src={categoria.imagen_url}
               alt={categoria.nombre}
               fill
+              unoptimized
               className="object-contain hover:scale-105 transition-transform duration-300"
             />
           </div>
@@ -85,12 +86,13 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
             >
               <div className="flex items-start gap-3">
                 {/* Miniatura del producto (si tiene foto) */}
-                {prod.imagen_url && (
+                {prod.imagen_url && prod.imagen_url.trim() !== '' && (
                   <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-black/40 border border-amber-500/20 overflow-hidden shrink-0 shadow-md">
                     <Image
                       src={prod.imagen_url}
                       alt={prod.nombre}
                       fill
+                      unoptimized
                       className="object-cover hover:scale-110 transition-transform duration-300"
                     />
                   </div>
