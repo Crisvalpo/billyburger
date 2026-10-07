@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useMenuData } from '@/lib/store';
@@ -17,6 +17,8 @@ import {
   RotateCcw,
   ImageIcon,
   X,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 
 const GALERIA_IMAGENES = [
@@ -43,6 +45,10 @@ export default function AdminPage() {
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+
+  const fileInputEditRef = useRef<HTMLInputElement>(null);
+  const fileInputNewRef = useRef<HTMLInputElement>(null);
 
   // Formulario nuevo producto
   const [nuevoNombre, setNuevoNombre] = useState('');
@@ -60,6 +66,34 @@ export default function AdminPage() {
       currency: 'CLP',
       maximumFractionDigits: 0,
     }).format(precio);
+  };
+
+  const handleFileUpload = async (file: File, isEdit: boolean) => {
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        if (isEdit && editingProduct) {
+          setEditingProduct({ ...editingProduct, imagen_url: data.url });
+        } else {
+          setNuevaImagen(data.url);
+        }
+      } else {
+        alert(data.error || 'Error al subir imagen');
+      }
+    } catch (e: any) {
+      alert('Error al subir: ' + e.message);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleStartEdit = (p: Producto) => {
@@ -392,14 +426,25 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleSaveEdit} className="mt-4 space-y-4">
-              {/* Selector Visual de Imagen */}
-              <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-2">
-                  1. Imagen del Producto (Selecciona una de la galería):
-                </label>
+              {/* Sección Imagen: Subir nueva o seleccionar de galería */}
+              <div className="p-4 bg-zinc-900/90 rounded-2xl border border-white/10">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs font-bold text-amber-300 block">
+                    Foto del Producto
+                  </label>
+                  {editingProduct.imagen_url && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingProduct({ ...editingProduct, imagen_url: '' })}
+                      className="text-[11px] font-bold text-red-400 hover:text-red-300 transition"
+                    >
+                      Eliminar / Quitar Foto
+                    </button>
+                  )}
+                </div>
 
                 {/* Previsualización actual */}
-                <div className="flex items-center gap-3 p-3 bg-zinc-900 rounded-2xl border border-white/10 mb-3">
+                <div className="flex items-center gap-3 mb-3">
                   <div className="relative w-16 h-16 rounded-xl bg-black overflow-hidden border border-amber-500/40 shrink-0">
                     {editingProduct.imagen_url ? (
                       <Image
@@ -409,19 +454,57 @@ export default function AdminPage() {
                         className="object-cover"
                       />
                     ) : (
-                      <ImageIcon className="w-8 h-8 text-zinc-600 m-auto" />
+                      <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                        <ImageIcon className="w-8 h-8" />
+                      </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-[11px] text-zinc-400 block font-medium">Ruta actual:</span>
+                    <span className="text-[11px] text-zinc-400 block font-medium">Estado foto:</span>
                     <span className="text-xs font-mono text-amber-400 truncate block">
-                      {editingProduct.imagen_url || 'Sin imagen'}
+                      {editingProduct.imagen_url || 'Sin foto asignada'}
                     </span>
                   </div>
                 </div>
 
-                {/* Galería de botones con miniaturas */}
-                <div className="grid grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
+                {/* BOTÓN SUBIR FOTO DESDE CELULAR O PC */}
+                <div className="mb-3">
+                  <input
+                    type="file"
+                    ref={fileInputEditRef}
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleFileUpload(e.target.files[0], true);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={isUploading}
+                    onClick={() => fileInputEditRef.current?.click()}
+                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-black font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg transition active:scale-98 disabled:opacity-50"
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-black" />
+                        <span>Subiendo foto a Supabase...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 text-black" />
+                        <span>Subir Foto Nueva (desde celular o PC)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* O Seleccionar de la Galería existente */}
+                <span className="text-[11px] text-zinc-400 font-bold block mb-2">
+                  O elige una foto de la galería:
+                </span>
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
                   {GALERIA_IMAGENES.map((img) => (
                     <button
                       type="button"
@@ -432,7 +515,7 @@ export default function AdminPage() {
                       className={`p-2 rounded-xl text-left border flex items-center gap-2 transition ${
                         editingProduct.imagen_url === img.url
                           ? 'bg-amber-500/20 border-amber-500 text-white font-bold'
-                          : 'bg-zinc-900/80 border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800'
+                          : 'bg-black/60 border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800'
                       }`}
                     >
                       <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0 bg-black">
@@ -443,16 +526,16 @@ export default function AdminPage() {
                   ))}
                 </div>
 
-                {/* Campo URL libre */}
-                <div className="mt-2">
+                {/* O escribir URL personalizada */}
+                <div className="mt-2.5">
                   <input
                     type="text"
                     value={editingProduct.imagen_url || ''}
                     onChange={(e) =>
                       setEditingProduct({ ...editingProduct, imagen_url: e.target.value })
                     }
-                    placeholder="O escribe una URL personalizada (/images/foto.jpg o https://...)"
-                    className="w-full px-3 py-1.5 bg-zinc-900 border border-white/10 rounded-xl text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                    placeholder="O escribe una URL (https://...)"
+                    className="w-full px-3 py-1.5 bg-black border border-white/10 rounded-xl text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -648,12 +731,38 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1">Imagen</label>
+              {/* Imagen: Subir o Elegir */}
+              <div className="p-3 bg-zinc-900 rounded-xl border border-white/10">
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5">Foto</label>
+                <input
+                  type="file"
+                  ref={fileInputNewRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleFileUpload(e.target.files[0], false);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={isUploading}
+                  onClick={() => fileInputNewRef.current?.click()}
+                  className="w-full py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-500/30 transition mb-2"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isUploading ? 'Subiendo...' : 'Subir foto del producto'}</span>
+                </button>
+
                 <select
                   value={nuevaImagen}
                   onChange={(e) => setNuevaImagen(e.target.value)}
-                  className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3 py-1.5 bg-black border border-white/10 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
                 >
                   {GALERIA_IMAGENES.map((img) => (
                     <option key={img.url} value={img.url}>
