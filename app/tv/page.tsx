@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useMenuData } from '@/lib/store';
 import { Producto, Categoria } from '@/lib/types';
 import { Flame, Sparkles, Maximize2, QrCode } from 'lucide-react';
+import { BillyLoader } from '@/components/BillyLoader';
 
 function TVMenuboardContent() {
   const searchParams = useSearchParams();
@@ -71,12 +72,7 @@ function TVMenuboardContent() {
   if (loading || !activeCategory) {
     return (
       <div className="h-screen w-screen bg-[#07080a] flex items-center justify-center text-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xl font-bold tracking-widest uppercase text-amber-400">
-            Cargando Pantalla {pantallaId} BillyBurger...
-          </p>
-        </div>
+        <BillyLoader size={100} text={`Cargando Pantalla ${pantallaId} BillyBurger...`} />
       </div>
     );
   }
@@ -290,12 +286,7 @@ export default function TVMenuboardPage() {
     <Suspense
       fallback={
         <div className="h-screen w-screen bg-[#07080a] flex items-center justify-center text-white">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-xl font-bold tracking-widest uppercase text-amber-400">
-              Iniciando Menuboard TV...
-            </p>
-          </div>
+          <BillyLoader size={100} text="Iniciando Menuboard TV..." />
         </div>
       }
     >

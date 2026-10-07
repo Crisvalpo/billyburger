@@ -7,11 +7,12 @@ import { HeroBanner } from '@/components/HeroBanner';
 import { CategorySection } from '@/components/CategorySection';
 import { FloatingWhatsApp } from '@/components/FloatingWhatsApp';
 import { Footer } from '@/components/Footer';
+import { BillyLoader } from '@/components/BillyLoader';
 
 export default function HomePage() {
-  const { categorias, productos, eventos, loading } = useMenuData();
+  const { categorias, productos, loading } = useMenuData();
   const [categoriaActiva, setCategoriaActiva] = useState<string>(
-    categorias[0]?.slug || 'burgers'
+    categorias[0]?.slug || 'fajitas'
   );
 
   const handleSelectCategoria = (slug: string) => {
@@ -24,31 +25,30 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center text-white">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-semibold tracking-wider text-zinc-400">
-            Cargando la carta de BillyBurger...
-          </p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center text-white bg-[#170d05]">
+        <BillyLoader size={90} text="Cargando la carta de BillyBurger..." />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0c0f] text-zinc-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
-      {/* Top Navbar with Category Slider */}
+    <div className="min-h-screen text-zinc-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
+      {/* Top Navbar Sticky */}
       <Navbar
         categorias={categorias.filter((c) => c.activo)}
         categoriaActiva={categoriaActiva}
         onSelectCategoria={handleSelectCategoria}
       />
 
-      {/* Hero Banner with WhatsApp CTA & Events */}
-      <HeroBanner eventos={eventos} />
+      {/* Main Container - Centrado y enfocado para experiencia móvil de carta */}
+      <main className="flex-1 max-w-xl w-full mx-auto px-3 sm:px-4">
+        {/* Hero Top Emblem, Burger & Quick Menu Index */}
+        <HeroBanner
+          categorias={categorias.filter((c) => c.activo)}
+          onSelectCategoria={handleSelectCategoria}
+        />
 
-      {/* Main Menu Feed */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4">
+        {/* List of Sections with Wooden Badges & Horizontal Item Ribbons */}
         {categorias
           .filter((cat) => cat.activo)
           .map((cat) => {
@@ -69,7 +69,7 @@ export default function HomePage() {
       {/* Floating Sticky WhatsApp Button */}
       <FloatingWhatsApp />
 
-      {/* Footer */}
+      {/* Rustic Footer with Instagram and Events */}
       <Footer />
     </div>
   );
