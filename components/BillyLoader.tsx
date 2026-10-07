@@ -22,7 +22,7 @@ export function BillyLoader({ size = 80, text = 'Cargando BillyBurger...' }: Bil
         {/* Logo oficial en el centro */}
         <div className="relative" style={{ width: size, height: size }}>
           <Image
-            src="/images/29cbf34f55662089f170bbc92c87501d.png"
+            src="/images/loader-icon.png"
             alt="BillyBurger Loading"
             fill
             className="object-contain filter drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]"
