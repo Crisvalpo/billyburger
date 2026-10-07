@@ -36,19 +36,23 @@ export default function AdminPage() {
   const {
     categorias,
     productos,
+    updateCategoria,
     updateProducto,
     addProducto,
     deleteProducto,
     resetToDefaults,
   } = useMenuData();
 
+  const [activeTab, setActiveTab] = useState<'productos' | 'secciones'>('productos');
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
+  const [editingCategoria, setEditingCategoria] = useState<any | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
   const fileInputEditRef = useRef<HTMLInputElement>(null);
   const fileInputNewRef = useRef<HTMLInputElement>(null);
+  const fileInputCatRef = useRef<HTMLInputElement>(null);
 
   // Formulario nuevo producto
   const [nuevoNombre, setNuevoNombre] = useState('');
@@ -94,6 +98,37 @@ export default function AdminPage() {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleCategoryUpload = async (file: File) => {
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.url && editingCategoria) {
+        setEditingCategoria({ ...editingCategoria, imagen_url: data.url });
+      } else {
+        alert(data.error || 'Error al subir imagen');
+      }
+    } catch (e: any) {
+      alert('Error al subir: ' + e.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSaveEditCategoria = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategoria) return;
+    await updateCategoria(editingCategoria);
+    setEditingCategoria(null);
   };
 
   const handleStartEdit = (p: Producto) => {
@@ -247,8 +282,93 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Filter Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
+        {/* Mode Switch: Productos vs Imágenes de Secciones */}
+        <div className="flex items-center gap-3 mb-6 p-1.5 rounded-2xl bg-[#12141c] border border-white/10 w-fit">
+          <button
+            onClick={() => setActiveTab('productos')}
+            className={`px-5 py-2 rounded-xl text-xs font-black transition ${
+              activeTab === 'productos'
+                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            🍔 Lista de Productos ({productos.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('secciones')}
+            className={`px-5 py-2 rounded-xl text-xs font-black transition ${
+              activeTab === 'secciones'
+                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            🖼️ Imágenes de Secciones / Categorías ({categorias.length})
+          </button>
+        </div>
+
+        {activeTab === 'secciones' ? (
+          <div className="space-y-4">
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+              💡 Aquí puedes <strong>cambiar la foto principal de cabecera</strong> que se muestra para cada sección (Hamburguesas, Sándwiches, Fajitas, etc.). Puedes subir una foto recortada (PNG transparente) o elegir de las existentes.
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {categorias.map((cat) => {
+                const imgCat =
+                  cat.imagen_url ||
+                  (cat.slug === 'fajitas'
+                    ? '/images/fajita-cutout.png'
+                    : cat.slug === 'papas-fritas'
+                    ? '/images/papas-sticker.png'
+                    : cat.slug === 'chorrillanas'
+                    ? '/images/chorrillana.png'
+                    : cat.slug === 'completos' || cat.slug === 'sandwiches'
+                    ? '/images/sandwich.png'
+                    : cat.slug === 'ensaladas'
+                    ? '/images/ensalada.png'
+                    : cat.slug === 'bebidas'
+                    ? '/images/bebidas.png'
+                    : '/images/burger-png.png');
+
+                return (
+                  <div
+                    key={cat.id}
+                    className="p-5 rounded-2xl bg-[#12141c] border border-white/5 flex items-center justify-between gap-4 shadow-lg hover:border-amber-500/30 transition"
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="relative w-20 h-20 rounded-2xl bg-black/60 border border-white/10 p-1 overflow-hidden shrink-0 flex items-center justify-center">
+                        <Image
+                          src={imgCat}
+                          alt={cat.nombre}
+                          fill
+                          className="object-contain p-1"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-base font-black text-white truncate">{cat.nombre}</h3>
+                        <p className="text-xs text-zinc-400 font-mono">#{cat.slug}</p>
+                        <span className="text-[11px] text-amber-400/90 font-medium block mt-1">
+                          {productos.filter((p) => p.categoria_id === cat.id).length} productos asociados
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setEditingCategoria({ ...cat, imagen_url: imgCat })}
+                      className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black text-zinc-200 text-xs font-black transition flex items-center gap-1.5 shrink-0"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>Cambiar Imagen</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Filter Bar */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
           <button
             onClick={() => setCategoriaFiltro('todas')}
             className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
@@ -406,7 +526,9 @@ export default function AdminPage() {
             );
           })}
         </div>
-      </main>
+      </>
+    )}
+  </main>
 
       {/* MODAL EDITAR PRODUCTO E IMAGEN */}
       {editingProduct && (
@@ -828,6 +950,120 @@ export default function AdminPage() {
                   className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black transition"
                 >
                   Crear Producto
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR IMAGEN DE SECCIÓN / CATEGORÍA */}
+      {editingCategoria && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#13151e] border border-white/10 rounded-3xl p-6 max-w-lg w-full shadow-2xl my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <h2 className="text-lg font-black text-white flex items-center gap-2">
+                <Edit className="w-5 h-5 text-amber-400" />
+                Imagen de Sección: {editingCategoria.nombre}
+              </h2>
+              <button
+                onClick={() => setEditingCategoria(null)}
+                className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditCategoria} className="mt-4 space-y-4">
+              <div className="p-4 bg-zinc-900/90 rounded-2xl border border-white/10">
+                <label className="text-xs font-bold text-amber-300 block mb-2">
+                  Vista Previa de la Sección
+                </label>
+
+                {/* Previsualización actual */}
+                <div className="flex items-center justify-center p-4 rounded-xl bg-black/60 border border-amber-500/30 mb-3">
+                  <div className="relative w-40 h-28">
+                    {editingCategoria.imagen_url ? (
+                      <Image
+                        src={editingCategoria.imagen_url}
+                        alt={editingCategoria.nombre}
+                        fill
+                        className="object-contain"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs">
+                        Sin imagen
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Subir archivo desde PC o Móvil */}
+                <input
+                  type="file"
+                  ref={fileInputCatRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleCategoryUpload(file);
+                  }}
+                />
+
+                <button
+                  type="button"
+                  disabled={isUploading}
+                  onClick={() => fileInputCatRef.current?.click()}
+                  className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition mb-3 shadow-md shadow-amber-500/20"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  <span>
+                    {isUploading ? 'Subiendo imagen...' : 'Subir foto transparente (PNG o JPG)'}
+                  </span>
+                </button>
+
+                {/* O seleccionar imagen prediseñada */}
+                <div>
+                  <span className="text-[11px] text-zinc-400 block mb-1 font-bold">
+                    O selecciona una existente:
+                  </span>
+                  <select
+                    value={editingCategoria.imagen_url || ''}
+                    onChange={(e) =>
+                      setEditingCategoria({ ...editingCategoria, imagen_url: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
+                  >
+                    <option value="/images/burger-png.png">🍔 Burger Clásica (Recorte)</option>
+                    <option value="/images/burger-walala.jpg">🍔 Burger Walala (Foto Real)</option>
+                    <option value="/images/sandwich.png">🥪 Sándwich & Mechada (Recorte)</option>
+                    <option value="/images/chorrillana.png">🍟 Chorrillana con Huevos (Recorte)</option>
+                    <option value="/images/papas-sticker.png">🍟 Papas Fritas Sticker (Recorte)</option>
+                    <option value="/images/fajita-cutout.png">🌯 Fajita Ensalada (Recorte)</option>
+                    <option value="/images/ensalada.png">🥗 Ensalada Saludable (Recorte)</option>
+                    <option value="/images/bebidas.png">🥤 Latas de Bebidas (Recorte)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingCategoria(null)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUploading}
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black transition shadow-lg shadow-amber-500/20"
+                >
+                  Guardar Imagen
                 </button>
               </div>
             </form>

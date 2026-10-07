@@ -4,6 +4,7 @@ export interface Categoria {
   slug: string;
   orden: number;
   icono?: string;
+  imagen_url?: string;
   activo: boolean;
 }
 

@@ -25,7 +25,8 @@ const IMAGENES_SECCION: Record<string, string> = {
 export function CategorySection({ categoria, productos }: CategorySectionProps) {
   if (productos.length === 0) return null;
 
-  const imagenSeccion = IMAGENES_SECCION[categoria.slug] || '/images/burger-png.png';
+  const imagenSeccion =
+    categoria.imagen_url || IMAGENES_SECCION[categoria.slug] || '/images/burger-png.png';
 
   const formatoPrecio = (precio: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -95,42 +96,58 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
                 !prod.disponible ? 'opacity-50 grayscale' : ''
               }`}
             >
-              {/* Fila Principal: Nombre del Producto + Precio */}
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-base sm:text-lg font-black text-white tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                    {prod.nombre}
-                  </h3>
-                  {prod.es_destacado && (
-                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500 text-black shadow">
-                      Favorito
-                    </span>
-                  )}
-                  {!prod.disponible && (
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-red-600 text-white">
-                      Agotado
-                    </span>
-                  )}
-                </div>
+              <div className="flex items-start gap-3">
+                {/* Miniatura del producto (si tiene foto) */}
+                {prod.imagen_url && (
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-black/40 border border-amber-500/20 overflow-hidden shrink-0 shadow-md">
+                    <Image
+                      src={prod.imagen_url}
+                      alt={prod.nombre}
+                      fill
+                      className="object-cover hover:scale-110 transition-transform duration-300"
+                    />
+                  </div>
+                )}
 
-                <div className="text-right shrink-0">
-                  <span className="text-base sm:text-xl font-black text-amber-400 font-mono tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-                    {formatoPrecio(prod.precio)}
-                  </span>
-                  {prod.precio_secundario && (
-                    <span className="text-[11px] block font-bold text-zinc-300">
-                      {prod.etiqueta_precio_secundario || 'Sin Papas'}: {formatoPrecio(prod.precio_secundario)}
-                    </span>
+                <div className="flex-1 min-w-0">
+                  {/* Fila Principal: Nombre del Producto + Precio */}
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-black text-white tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                        {prod.nombre}
+                      </h3>
+                      {prod.es_destacado && (
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500 text-black shadow">
+                          Favorito
+                        </span>
+                      )}
+                      {!prod.disponible && (
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-red-600 text-white">
+                          Agotado
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className="text-base sm:text-xl font-black text-amber-400 font-mono tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+                        {formatoPrecio(prod.precio)}
+                      </span>
+                      {prod.precio_secundario && (
+                        <span className="text-[11px] block font-bold text-zinc-300">
+                          {prod.etiqueta_precio_secundario || 'Sin Papas'}: {formatoPrecio(prod.precio_secundario)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Fila Secundaria: Ingredientes en tipografía clara */}
+                  {prod.descripcion && (
+                    <p className="mt-1 text-xs sm:text-sm text-zinc-200 font-normal leading-relaxed tracking-wide">
+                      {prod.descripcion}
+                    </p>
                   )}
                 </div>
               </div>
-
-              {/* Fila Secundaria: Ingredientes en tipografía clara */}
-              {prod.descripcion && (
-                <p className="mt-1 text-xs sm:text-sm text-zinc-200 font-normal leading-relaxed tracking-wide">
-                  {prod.descripcion}
-                </p>
-              )}
 
               {/* Botón sutil de pedido al tocar el plato */}
               {prod.disponible && (

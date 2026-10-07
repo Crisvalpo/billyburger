@@ -69,6 +69,9 @@ export function useMenuData() {
     if (isSupabaseConfigured && supabase) {
       const channel = supabase
         .channel('billy-realtime')
+        .on('postgres_changes', { event: '*', schema: 'billy', table: 'categorias' }, () => {
+          loadData();
+        })
         .on('postgres_changes', { event: '*', schema: 'billy', table: 'productos' }, (payload) => {
           console.log('Realtime product update:', payload);
           loadData();
@@ -99,6 +102,21 @@ export function useMenuData() {
       };
     }
   }, []);
+
+  // Función para actualizar categoría
+  const updateCategoria = async (categoriaActualizada: Categoria) => {
+    const nuevas = categorias.map((c) => (c.id === categoriaActualizada.id ? categoriaActualizada : c));
+    setCategorias(nuevas);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.CATEGORIAS, JSON.stringify(nuevas));
+      bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('categorias').update(categoriaActualizada).eq('id', categoriaActualizada.id);
+    }
+  };
 
   // Función para actualizar producto
   const updateProducto = async (productoActualizado: Producto) => {
@@ -166,6 +184,7 @@ export function useMenuData() {
     eventos,
     configTV,
     loading,
+    updateCategoria,
     updateProducto,
     addProducto,
     deleteProducto,
