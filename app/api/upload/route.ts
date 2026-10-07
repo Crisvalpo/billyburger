@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import fs from 'fs';
+import { createClient } from '@supabase/supabase-js';
 import path from 'path';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://api.lukeapp.cl';
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  '';
+
+const supabaseAdmin = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,9 +26,9 @@ export async function POST(req: NextRequest) {
     const ext = path.extname(file.name) || '.jpg';
     const filename = `billy-${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
 
-    // 1. Si Supabase está configurado, subir al bucket 'billy-images'
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.storage
+    // Subir prioritariamente al bucket de Supabase
+    if (supabaseAdmin) {
+      const { data, error } = await supabaseAdmin.storage
         .from('billy-images')
         .upload(filename, buffer, {
           contentType: file.type || 'image/jpeg',
@@ -29,7 +36,7 @@ export async function POST(req: NextRequest) {
         });
 
       if (!error && data) {
-        const { data: publicUrlData } = supabase.storage
+        const { data: publicUrlData } = supabaseAdmin.storage
           .from('billy-images')
           .getPublicUrl(filename);
 
@@ -38,8 +45,14 @@ export async function POST(req: NextRequest) {
           filename: filename,
           storage: 'supabase',
         });
-      } else if (error) {
-        console.warn('Supabase storage upload error, fallback a local:', error.message);
+      }
+
+      if (error) {
+        console.error('Error al subir a bucket Supabase billy-images:', error);
+        return NextResponse.json(
+          { error: `Error subiendo a bucket Supabase: ${error.message}` },
+          { status: 500 }
+        );
       }
     }
 
