@@ -1,0 +1,174 @@
+import { useState, useEffect } from 'react';
+import { Producto, Categoria, Evento, ConfiguracionTV } from './types';
+import { CATEGORIAS_INICIALES, PRODUCTOS_INICIALES, EVENTOS_INICIALES, CONFIG_TV_INICIAL } from './data';
+import { supabase, isSupabaseConfigured } from './supabase';
+
+const STORAGE_KEYS = {
+  PRODUCTOS: 'billy_productos_v1',
+  CATEGORIAS: 'billy_categorias_v1',
+  EVENTOS: 'billy_eventos_v1',
+  CONFIG_TV: 'billy_config_tv_v1',
+};
+
+// Canal Broadcast para sincronización local entre pestañas (TV + Admin)
+const bc = typeof window !== 'undefined' && 'BroadcastChannel' in window
+  ? new BroadcastChannel('billy_realtime_sync')
+  : null;
+
+export function useMenuData() {
+  const [categorias, setCategorias] = useState<Categoria[]>(CATEGORIAS_INICIALES);
+  const [productos, setProductos] = useState<Producto[]>(PRODUCTOS_INICIALES);
+  const [eventos, setEventos] = useState<Evento[]>(EVENTOS_INICIALES);
+  const [configTV, setConfigTV] = useState<ConfiguracionTV[]>(CONFIG_TV_INICIAL);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Carga inicial
+  useEffect(() => {
+    async function loadData() {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data: dbCats } = await supabase.from('categorias').select('*').order('orden');
+          const { data: dbProds } = await supabase.from('productos').select('*').order('orden');
+          const { data: dbEvents } = await supabase.from('eventos').select('*').order('orden');
+          const { data: dbConfig } = await supabase.from('configuracion_tv').select('*');
+
+          if (dbCats && dbCats.length > 0) setCategorias(dbCats);
+          if (dbProds && dbProds.length > 0) setProductos(dbProds);
+          if (dbEvents && dbEvents.length > 0) setEventos(dbEvents);
+          if (dbConfig && dbConfig.length > 0) setConfigTV(dbConfig);
+        } catch (err) {
+          console.warn('Error loading from Supabase, fallback to localStorage/default:', err);
+          loadFromLocal();
+        }
+      } else {
+        loadFromLocal();
+      }
+      setLoading(false);
+    }
+
+    function loadFromLocal() {
+      if (typeof window === 'undefined') return;
+      try {
+        const localProds = localStorage.getItem(STORAGE_KEYS.PRODUCTOS);
+        const localCats = localStorage.getItem(STORAGE_KEYS.CATEGORIAS);
+        const localEvents = localStorage.getItem(STORAGE_KEYS.EVENTOS);
+        const localConfig = localStorage.getItem(STORAGE_KEYS.CONFIG_TV);
+
+        if (localProds) setProductos(JSON.parse(localProds));
+        if (localCats) setCategorias(JSON.parse(localCats));
+        if (localEvents) setEventos(JSON.parse(localEvents));
+        if (localConfig) setConfigTV(JSON.parse(localConfig));
+      } catch (e) {
+        console.error('Error reading localStorage:', e);
+      }
+    }
+
+    loadData();
+
+    // Suscripción Realtime Supabase
+    if (isSupabaseConfigured && supabase) {
+      const channel = supabase
+        .channel('billy-realtime')
+        .on('postgres_changes', { event: '*', schema: 'billy', table: 'productos' }, (payload) => {
+          console.log('Realtime product update:', payload);
+          loadData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'billy', table: 'eventos' }, () => {
+          loadData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'billy', table: 'configuracion_tv' }, () => {
+          loadData();
+        })
+        .subscribe();
+
+      return () => {
+        supabase?.removeChannel(channel);
+      };
+    }
+
+    // Suscripción BroadcastChannel entre pestañas
+    if (bc) {
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'UPDATE_ALL') {
+          loadFromLocal();
+        }
+      };
+      bc.addEventListener('message', handleMessage);
+      return () => {
+        bc.removeEventListener('message', handleMessage);
+      };
+    }
+  }, []);
+
+  // Función para actualizar producto
+  const updateProducto = async (productoActualizado: Producto) => {
+    const nuevos = productos.map((p) => (p.id === productoActualizado.id ? productoActualizado : p));
+    setProductos(nuevos);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify(nuevos));
+      bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('productos').update(productoActualizado).eq('id', productoActualizado.id);
+    }
+  };
+
+  // Función para agregar producto
+  const addProducto = async (nuevo: Producto) => {
+    const nuevos = [...productos, nuevo];
+    setProductos(nuevos);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify(nuevos));
+      bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('productos').insert(nuevo);
+    }
+  };
+
+  // Función para eliminar producto
+  const deleteProducto = async (id: string) => {
+    const nuevos = productos.filter((p) => p.id !== id);
+    setProductos(nuevos);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify(nuevos));
+      bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('productos').delete().eq('id', id);
+    }
+  };
+
+  // Función para resetear datos iniciales
+  const resetToDefaults = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEYS.PRODUCTOS);
+      localStorage.removeItem(STORAGE_KEYS.CATEGORIAS);
+      localStorage.removeItem(STORAGE_KEYS.EVENTOS);
+      localStorage.removeItem(STORAGE_KEYS.CONFIG_TV);
+      bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+    setProductos(PRODUCTOS_INICIALES);
+    setCategorias(CATEGORIAS_INICIALES);
+    setEventos(EVENTOS_INICIALES);
+    setConfigTV(CONFIG_TV_INICIAL);
+  };
+
+  return {
+    categorias,
+    productos,
+    eventos,
+    configTV,
+    loading,
+    updateProducto,
+    addProducto,
+    deleteProducto,
+    resetToDefaults,
+  };
+}
