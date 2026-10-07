@@ -10,23 +10,8 @@ interface CategorySectionProps {
   productos: Producto[];
 }
 
-// Mapeo de fotos recortadas oficiales para cada sección
-const IMAGENES_SECCION: Record<string, string> = {
-  fajitas: '/images/fajita-cutout.png',
-  'papas-fritas': '/images/papas-sticker.png',
-  chorrillanas: '/images/chorrillana.png',
-  completos: '/images/sandwich.png',
-  sandwiches: '/images/sandwich.png',
-  burgers: '/images/burger-png.png',
-  ensaladas: '/images/ensalada.png',
-  bebidas: '/images/bebidas.png',
-};
-
 export function CategorySection({ categoria, productos }: CategorySectionProps) {
   if (productos.length === 0) return null;
-
-  const imagenSeccion =
-    categoria.imagen_url || IMAGENES_SECCION[categoria.slug] || '/images/burger-png.png';
 
   const formatoPrecio = (precio: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -64,15 +49,17 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
           </a>
         </div>
 
-        {/* 2. SECTION HERO CUTOUT IMAGE */}
-        <div className="relative w-44 h-32 sm:w-52 sm:h-36 my-3 filter drop-shadow-[0_12px_16px_rgba(0,0,0,0.85)]">
-          <Image
-            src={imagenSeccion}
-            alt={categoria.nombre}
-            fill
-            className="object-contain hover:scale-105 transition-transform duration-300"
-          />
-        </div>
+        {/* 2. SECTION HERO CUTOUT IMAGE (Solo si fue subida por la web) */}
+        {categoria.imagen_url && (
+          <div className="relative w-44 h-32 sm:w-52 sm:h-36 my-3 filter drop-shadow-[0_12px_16px_rgba(0,0,0,0.85)]">
+            <Image
+              src={categoria.imagen_url}
+              alt={categoria.nombre}
+              fill
+              className="object-contain hover:scale-105 transition-transform duration-300"
+            />
+          </div>
+        )}
 
         {/* Banner informativo de sección (ej: Sándwiches con papas) */}
         {categoria.slug === 'sandwiches' && (

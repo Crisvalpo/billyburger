@@ -27,6 +27,20 @@ export async function POST(req: NextRequest) {
     const ext = path.extname(file.name) || '.jpg';
     const filename = `billy-${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
 
+    // Si se envió la URL de la imagen anterior, eliminarla del bucket para no acumular basura
+    const oldImageUrl = formData.get('oldImageUrl') as string | null;
+    if (oldImageUrl && supabaseAdmin && oldImageUrl.includes('/billy-images/')) {
+      try {
+        const parts = oldImageUrl.split('/billy-images/');
+        const oldFilename = parts[1]?.split('?')[0];
+        if (oldFilename) {
+          await supabaseAdmin.storage.from('billy-images').remove([oldFilename]);
+        }
+      } catch (delErr) {
+        console.warn('Error eliminando imagen anterior del bucket:', delErr);
+      }
+    }
+
     // Subir prioritariamente al bucket de Supabase
     if (supabaseAdmin) {
       const { data, error } = await supabaseAdmin.storage
@@ -74,5 +88,27 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error('Error in upload route:', err);
     return NextResponse.json({ error: err.message || 'Error al subir imagen' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { url } = await req.json();
+    if (!url) {
+      return NextResponse.json({ error: 'Falta la URL de la imagen' }, { status: 400 });
+    }
+
+    if (supabaseAdmin && url.includes('/billy-images/')) {
+      const parts = url.split('/billy-images/');
+      const filename = parts[1]?.split('?')[0];
+      if (filename) {
+        await supabaseAdmin.storage.from('billy-images').remove([filename]);
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error('Error deleting image from bucket:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

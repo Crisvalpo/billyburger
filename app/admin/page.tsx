@@ -21,17 +21,6 @@ import {
   Loader2,
 } from 'lucide-react';
 
-const GALERIA_IMAGENES = [
-  { nombre: '🍔 Burger Walala (Foto Real)', url: '/images/burger-walala.jpg' },
-  { nombre: '🍔 Burger Clásica (Transparente)', url: '/images/burger-png.png' },
-  { nombre: '🍟 Chorrillana con Huevos Fritos', url: '/images/chorrillana.png' },
-  { nombre: '🍟 Papas Fritas & Salchipapas', url: '/images/papas-fritas.png' },
-  { nombre: '🥪 Sándwich / Mechada / Completo', url: '/images/sandwich.png' },
-  { nombre: '🌯 Fajita Tradicional', url: '/images/fajita.jpg' },
-  { nombre: '🥗 Ensalada Completa', url: '/images/ensalada.png' },
-  { nombre: '🥤 Bebidas & Latas', url: '/images/bebidas.png' },
-];
-
 export default function AdminPage() {
   const {
     categorias,
@@ -77,6 +66,9 @@ export default function AdminPage() {
       setIsUploading(true);
       const formData = new FormData();
       formData.append('file', file);
+      if (isEdit && editingProduct?.imagen_url) {
+        formData.append('oldImageUrl', editingProduct.imagen_url);
+      }
 
       const res = await fetch('/api/upload', {
         method: 'POST',
@@ -105,6 +97,9 @@ export default function AdminPage() {
       setIsUploading(true);
       const formData = new FormData();
       formData.append('file', file);
+      if (editingCategoria?.imagen_url) {
+        formData.append('oldImageUrl', editingCategoria.imagen_url);
+      }
 
       const res = await fetch('/api/upload', {
         method: 'POST',
@@ -121,6 +116,36 @@ export default function AdminPage() {
       alert('Error al subir: ' + e.message);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDeleteProductImage = async () => {
+    if (!editingProduct?.imagen_url) return;
+    try {
+      await fetch('/api/upload', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: editingProduct.imagen_url }),
+      });
+      setEditingProduct({ ...editingProduct, imagen_url: '' });
+    } catch (e) {
+      console.warn('Error borrando foto del bucket:', e);
+      setEditingProduct({ ...editingProduct, imagen_url: '' });
+    }
+  };
+
+  const handleDeleteCategoryImage = async () => {
+    if (!editingCategoria?.imagen_url) return;
+    try {
+      await fetch('/api/upload', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: editingCategoria.imagen_url }),
+      });
+      setEditingCategoria({ ...editingCategoria, imagen_url: '' });
+    } catch (e) {
+      console.warn('Error borrando foto del bucket:', e);
+      setEditingCategoria({ ...editingCategoria, imagen_url: '' });
     }
   };
 
@@ -309,27 +334,11 @@ export default function AdminPage() {
         {activeTab === 'secciones' ? (
           <div className="space-y-4">
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
-              💡 Aquí puedes <strong>cambiar la foto principal de cabecera</strong> que se muestra para cada sección (Hamburguesas, Sándwiches, Fajitas, etc.). Puedes subir una foto recortada (PNG transparente) o elegir de las existentes.
+              💡 Aquí puedes <strong>subir o cambiar la foto principal de cabecera</strong> para cada sección (Hamburguesas, Sándwiches, Fajitas, etc.). Cada foto que subas va directo al bucket de Supabase y puedes eliminarla cuando desees.
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {categorias.map((cat) => {
-                const imgCat =
-                  cat.imagen_url ||
-                  (cat.slug === 'fajitas'
-                    ? '/images/fajita-cutout.png'
-                    : cat.slug === 'papas-fritas'
-                    ? '/images/papas-sticker.png'
-                    : cat.slug === 'chorrillanas'
-                    ? '/images/chorrillana.png'
-                    : cat.slug === 'completos' || cat.slug === 'sandwiches'
-                    ? '/images/sandwich.png'
-                    : cat.slug === 'ensaladas'
-                    ? '/images/ensalada.png'
-                    : cat.slug === 'bebidas'
-                    ? '/images/bebidas.png'
-                    : '/images/burger-png.png');
-
                 return (
                   <div
                     key={cat.id}
@@ -337,12 +346,19 @@ export default function AdminPage() {
                   >
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative w-20 h-20 rounded-2xl bg-black/60 border border-white/10 p-1 overflow-hidden shrink-0 flex items-center justify-center">
-                        <Image
-                          src={imgCat}
-                          alt={cat.nombre}
-                          fill
-                          className="object-contain p-1"
-                        />
+                        {cat.imagen_url ? (
+                          <Image
+                            src={cat.imagen_url}
+                            alt={cat.nombre}
+                            fill
+                            className="object-contain p-1"
+                          />
+                        ) : (
+                          <div className="text-center p-1">
+                            <ImageIcon className="w-6 h-6 text-zinc-600 mx-auto mb-1" />
+                            <span className="text-[10px] text-zinc-500 font-bold block">Sin foto</span>
+                          </div>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <h3 className="text-base font-black text-white truncate">{cat.nombre}</h3>
@@ -354,11 +370,11 @@ export default function AdminPage() {
                     </div>
 
                     <button
-                      onClick={() => setEditingCategoria({ ...cat, imagen_url: imgCat })}
+                      onClick={() => setEditingCategoria({ ...cat, imagen_url: cat.imagen_url || '' })}
                       className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black text-zinc-200 text-xs font-black transition flex items-center gap-1.5 shrink-0"
                     >
                       <Edit className="w-3.5 h-3.5" />
-                      <span>Cambiar Imagen</span>
+                      <span>{cat.imagen_url ? 'Cambiar Foto' : 'Subir Foto'}</span>
                     </button>
                   </div>
                 );
@@ -557,7 +573,7 @@ export default function AdminPage() {
                   {editingProduct.imagen_url && (
                     <button
                       type="button"
-                      onClick={() => setEditingProduct({ ...editingProduct, imagen_url: '' })}
+                      onClick={handleDeleteProductImage}
                       className="text-[11px] font-bold text-red-400 hover:text-red-300 transition"
                     >
                       Eliminar / Quitar Foto
@@ -622,41 +638,18 @@ export default function AdminPage() {
                   </button>
                 </div>
 
-                {/* O Seleccionar de la Galería existente */}
-                <span className="text-[11px] text-zinc-400 font-bold block mb-2">
-                  O elige una foto de la galería:
-                </span>
-                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
-                  {GALERIA_IMAGENES.map((img) => (
-                    <button
-                      type="button"
-                      key={img.url}
-                      onClick={() =>
-                        setEditingProduct({ ...editingProduct, imagen_url: img.url })
-                      }
-                      className={`p-2 rounded-xl text-left border flex items-center gap-2 transition ${
-                        editingProduct.imagen_url === img.url
-                          ? 'bg-amber-500/20 border-amber-500 text-white font-bold'
-                          : 'bg-black/60 border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800'
-                      }`}
-                    >
-                      <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0 bg-black">
-                        <Image src={img.url} alt={img.nombre} fill className="object-cover" />
-                      </div>
-                      <span className="text-[11px] line-clamp-1 leading-tight">{img.nombre}</span>
-                    </button>
-                  ))}
-                </div>
-
                 {/* O escribir URL personalizada */}
-                <div className="mt-2.5">
+                <div className="mt-1">
+                  <span className="text-[11px] text-zinc-400 font-bold block mb-1">
+                    O pega una URL directa:
+                  </span>
                   <input
                     type="text"
                     value={editingProduct.imagen_url || ''}
                     onChange={(e) =>
                       setEditingProduct({ ...editingProduct, imagen_url: e.target.value })
                     }
-                    placeholder="O escribe una URL (https://...)"
+                    placeholder="https://..."
                     className="w-full px-3 py-1.5 bg-black border border-white/10 rounded-xl text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
                   />
                 </div>
@@ -881,17 +874,24 @@ export default function AdminPage() {
                   <span>{isUploading ? 'Subiendo...' : 'Subir foto del producto'}</span>
                 </button>
 
-                <select
-                  value={nuevaImagen}
-                  onChange={(e) => setNuevaImagen(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-black border border-white/10 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
-                >
-                  {GALERIA_IMAGENES.map((img) => (
-                    <option key={img.url} value={img.url}>
-                      {img.nombre}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="relative w-12 h-12 rounded-xl bg-black overflow-hidden border border-white/10 shrink-0">
+                    {nuevaImagen ? (
+                      <Image src={nuevaImagen} alt="Preview" fill className="object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                        <ImageIcon className="w-6 h-6" />
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={nuevaImagen}
+                    onChange={(e) => setNuevaImagen(e.target.value)}
+                    placeholder="URL de la imagen (o súbela arriba)"
+                    className="flex-1 px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div>
@@ -1010,43 +1010,34 @@ export default function AdminPage() {
                   }}
                 />
 
-                <button
-                  type="button"
-                  disabled={isUploading}
-                  onClick={() => fileInputCatRef.current?.click()}
-                  className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition mb-3 shadow-md shadow-amber-500/20"
-                >
-                  {isUploading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Upload className="w-4 h-4" />
-                  )}
-                  <span>
-                    {isUploading ? 'Subiendo imagen...' : 'Subir foto transparente (PNG o JPG)'}
-                  </span>
-                </button>
-
-                {/* O seleccionar imagen prediseñada */}
-                <div>
-                  <span className="text-[11px] text-zinc-400 block mb-1 font-bold">
-                    O selecciona una existente:
-                  </span>
-                  <select
-                    value={editingCategoria.imagen_url || ''}
-                    onChange={(e) =>
-                      setEditingCategoria({ ...editingCategoria, imagen_url: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={isUploading}
+                    onClick={() => fileInputCatRef.current?.click()}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition shadow-md shadow-amber-500/20"
                   >
-                    <option value="/images/burger-png.png">🍔 Burger Clásica (Recorte)</option>
-                    <option value="/images/burger-walala.jpg">🍔 Burger Walala (Foto Real)</option>
-                    <option value="/images/sandwich.png">🥪 Sándwich & Mechada (Recorte)</option>
-                    <option value="/images/chorrillana.png">🍟 Chorrillana con Huevos (Recorte)</option>
-                    <option value="/images/papas-sticker.png">🍟 Papas Fritas Sticker (Recorte)</option>
-                    <option value="/images/fajita-cutout.png">🌯 Fajita Ensalada (Recorte)</option>
-                    <option value="/images/ensalada.png">🥗 Ensalada Saludable (Recorte)</option>
-                    <option value="/images/bebidas.png">🥤 Latas de Bebidas (Recorte)</option>
-                  </select>
+                    {isUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    <span>
+                      {isUploading ? 'Subiendo imagen a Supabase...' : 'Subir Imagen para esta Sección'}
+                    </span>
+                  </button>
+
+                  {editingCategoria.imagen_url && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteCategoryImage}
+                      className="px-3 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold transition flex items-center gap-1.5"
+                      title="Eliminar foto del bucket"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Quitar</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

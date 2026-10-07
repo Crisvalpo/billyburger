@@ -8,6 +8,20 @@ const nextConfig: NextConfig = {
     "localhost:3000",
     "127.0.0.1:3000",
   ],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'api-oracle.lukeapp.cl',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.lukeapp.cl',
+        pathname: '/**',
+      },
+    ],
+  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
