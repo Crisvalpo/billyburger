@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+'use client';
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Producto, Categoria, Evento, ConfiguracionTV } from './types';
 import { CATEGORIAS_INICIALES, PRODUCTOS_INICIALES, EVENTOS_INICIALES, CONFIG_TV_INICIAL } from './data';
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -15,21 +17,24 @@ const bc = typeof window !== 'undefined' && 'BroadcastChannel' in window
   ? new BroadcastChannel('billy_realtime_sync')
   : null;
 
-export function useMenuData() {
+function useMenuDataInternal() {
   const [categorias, setCategorias] = useState<Categoria[]>(CATEGORIAS_INICIALES);
   const [productos, setProductos] = useState<Producto[]>(PRODUCTOS_INICIALES);
   const [eventos, setEventos] = useState<Evento[]>(EVENTOS_INICIALES);
   const [configTV, setConfigTV] = useState<ConfiguracionTV[]>(CONFIG_TV_INICIAL);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Carga inicial
+  // Carga inicial y suscripción Realtime única
   useEffect(() => {
+    let isMounted = true;
+
     async function loadData() {
       // 1. Intentar cargar desde el endpoint servidor /api/menu (máxima fiabilidad)
       try {
         const res = await fetch('/api/menu');
         if (res.ok) {
           const json = await res.json();
+          if (!isMounted) return;
           if (json.categorias && json.categorias.length > 0) {
             setCategorias(json.categorias);
             if (typeof window !== 'undefined') {
@@ -59,18 +64,19 @@ export function useMenuData() {
           const { data: dbEvents } = await supabase.from('eventos').select('*').order('orden');
           const { data: dbConfig } = await supabase.from('configuracion_tv').select('*');
 
+          if (!isMounted) return;
           if (dbCats && dbCats.length > 0) setCategorias(dbCats);
           if (dbProds && dbProds.length > 0) setProductos(dbProds);
           if (dbEvents && dbEvents.length > 0) setEventos(dbEvents);
           if (dbConfig && dbConfig.length > 0) setConfigTV(dbConfig);
         } catch (err) {
           console.warn('Error loading from Supabase, fallback to localStorage/default:', err);
-          loadFromLocal();
+          if (isMounted) loadFromLocal();
         }
       } else {
-        loadFromLocal();
+        if (isMounted) loadFromLocal();
       }
-      setLoading(false);
+      if (isMounted) setLoading(false);
     }
 
     function loadFromLocal() {
@@ -105,12 +111,14 @@ export function useMenuData() {
     // 1. Suscripción Realtime Supabase
     let channel: any = null;
     if (isSupabaseConfigured && supabase) {
+      // Usar nombre de canal único para evitar colisiones y errores con subscribe()
+      const channelId = `billy-realtime-${Math.random().toString(36).substring(2, 9)}`;
       channel = supabase
-        .channel('billy-realtime')
+        .channel(channelId)
         .on('postgres_changes', { event: '*', schema: 'billy', table: 'categorias' }, () => {
           loadData();
         })
-        .on('postgres_changes', { event: '*', schema: 'billy', table: 'productos' }, (payload) => {
+        .on('postgres_changes', { event: '*', schema: 'billy', table: 'productos' }, (payload: any) => {
           console.log('Realtime product update:', payload);
           loadData();
         })
@@ -120,7 +128,11 @@ export function useMenuData() {
         .on('postgres_changes', { event: '*', schema: 'billy', table: 'configuracion_tv' }, () => {
           loadData();
         })
-        .subscribe();
+        .subscribe((status: string, err: any) => {
+          if (err) {
+            console.warn('Realtime subscription status:', status, err);
+          }
+        });
     }
 
     // 2. Suscripción BroadcastChannel entre pestañas locales
@@ -140,6 +152,7 @@ export function useMenuData() {
     }, 60000);
 
     return () => {
+      isMounted = false;
       if (channel && supabase) {
         supabase.removeChannel(channel);
       }
@@ -412,4 +425,21 @@ export function useMenuData() {
     addProducto,
     deleteProducto,
   };
+}
+
+export type MenuContextType = ReturnType<typeof useMenuDataInternal>;
+
+const MenuContext = createContext<MenuContextType | null>(null);
+
+export function MenuProvider({ children }: { children: React.ReactNode }) {
+  const value = useMenuDataInternal();
+  return <MenuContext.Provider value={value}>{children}</MenuContext.Provider>;
+}
+
+export function useMenuData(): MenuContextType {
+  const context = useContext(MenuContext);
+  if (!context) {
+    throw new Error('useMenuData debe usarse dentro de un MenuProvider');
+  }
+  return context;
 }

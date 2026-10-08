@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 import { PwaRegister } from '@/components/PwaRegister';
+import { MenuProvider } from '@/lib/store';
 
 export const viewport: Viewport = {
   themeColor: '#170d05',
@@ -46,7 +47,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-[#0b0c0f] text-zinc-100">
         <PwaRegister />
-        {children}
+        <MenuProvider>
+          {children}
+        </MenuProvider>
       </body>
     </html>
   );
