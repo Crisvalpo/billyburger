@@ -10,8 +10,33 @@ import { BillyLoader } from '@/components/BillyLoader';
 
 function TVMenuboardContent() {
   const searchParams = useSearchParams();
-  const pantallaParam = searchParams.get('pantalla');
-  const pantallaId = pantallaParam ? parseInt(pantallaParam, 10) : 1;
+  const urlPantalla = searchParams.get('pantalla');
+
+  const [pantallaId, setPantallaId] = useState<number>(1);
+
+  // Cargar pantalla seleccionada desde URL o localStorage
+  useEffect(() => {
+    if (urlPantalla) {
+      const p = parseInt(urlPantalla, 10);
+      setPantallaId(p);
+      localStorage.setItem('billy_tv_pantalla_id', String(p));
+    } else if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('billy_tv_pantalla_id');
+      if (saved) {
+        setPantallaId(parseInt(saved, 10));
+      }
+    }
+  }, [urlPantalla]);
+
+  const cambiarPantalla = (nuevaPantalla: number) => {
+    setPantallaId(nuevaPantalla);
+    setActiveCategoryIndex(0);
+    setActiveProductIndex(0);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('billy_tv_pantalla_id', String(nuevaPantalla));
+      window.history.replaceState(null, '', `/tv?pantalla=${nuevaPantalla}`);
+    }
+  };
 
   const { categorias, productos, configTV, loading } = useMenuData();
 
@@ -125,9 +150,33 @@ function TVMenuboardContent() {
               className="h-10 w-auto object-contain filter drop-shadow-md"
               priority
             />
-            <span className="text-xs bg-amber-500/20 text-amber-300 font-extrabold px-2.5 py-1 rounded-full border border-amber-500/40 uppercase tracking-wider">
-              PANTALLA {pantallaId}
-            </span>
+            {/* Selector Interactivo Pantalla 1 y Pantalla 2 */}
+            <div className="flex items-center gap-1 bg-black/70 p-1 rounded-full border border-amber-500/40 shadow-inner">
+              <button
+                type="button"
+                onClick={() => cambiarPantalla(1)}
+                className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider transition ${
+                  pantallaId === 1
+                    ? 'bg-amber-500 text-black shadow-md'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+                title="Mostrar Pantalla 1 (Burgers & Papas)"
+              >
+                Pantalla 1
+              </button>
+              <button
+                type="button"
+                onClick={() => cambiarPantalla(2)}
+                className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider transition ${
+                  pantallaId === 2
+                    ? 'bg-amber-500 text-black shadow-md'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+                title="Mostrar Pantalla 2 (Sándwiches & Chorrillanas)"
+              >
+                Pantalla 2
+              </button>
+            </div>
           </div>
         </div>
 
