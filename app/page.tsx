@@ -62,6 +62,7 @@ function MainMenuContent() {
                 key={cat.id}
                 categoria={cat}
                 productos={prodsDeCategoria}
+                precioPapasCombo={configTV[0]?.precio_papas_combo || 1500}
               />
             );
           })}

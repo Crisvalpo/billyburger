@@ -9,12 +9,26 @@ import { Plus, Minus, ShoppingBag } from 'lucide-react';
 interface CategorySectionProps {
   categoria: Categoria;
   productos: Producto[];
+  precioPapasCombo?: number;
 }
 
-function ProductRow({ prod, categoriaSlug }: { prod: Producto; categoriaSlug?: string }) {
+function ProductRow({
+  prod,
+  categoriaSlug,
+  precioPapasCombo = 1500,
+}: {
+  prod: Producto;
+  categoriaSlug?: string;
+  precioPapasCombo?: number;
+}) {
   const { addItem, removeItem, getItemQuantity } = useCart();
-  const [sinPapas, setSinPapas] = useState(false);
-  const [conPapas, setConPapas] = useState(false);
+
+  const esSandwich = categoriaSlug === 'sandwiches';
+  const esCompleto = categoriaSlug === 'completos';
+  const tieneOpcionPapas = esSandwich || esCompleto;
+
+  // En sándwiches la opción por defecto es con papas; en completos es sin papas
+  const [conPapas, setConPapas] = useState<boolean>(esSandwich);
 
   const formatoPrecio = (precio: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -24,29 +38,27 @@ function ProductRow({ prod, categoriaSlug }: { prod: Producto; categoriaSlug?: s
     }).format(precio);
   };
 
-  const esCompleto = categoriaSlug === 'completos';
-  const precioPapasCompletos = 1500;
+  // Cálculo unificado de precios Sin Papas y Con Papas
+  let precioSinPapas = prod.precio;
+  let precioConPapas = prod.precio + precioPapasCombo;
 
-  let precioActual = prod.precio;
-  let opcionNombre = '';
-
-  if (esCompleto) {
-    if (conPapas) {
-      precioActual = prod.precio + precioPapasCompletos;
-      opcionNombre = 'Con Papas Fritas (+ $1.500)';
-    } else {
-      precioActual = prod.precio;
-      opcionNombre = '';
-    }
-  } else if (prod.precio_secundario) {
-    if (sinPapas) {
-      precioActual = prod.precio_secundario;
-      opcionNombre = prod.etiqueta_precio_secundario || 'Sin Papas';
-    } else {
-      precioActual = prod.precio;
-      opcionNombre = 'Con Papas';
-    }
+  if (esSandwich) {
+    precioSinPapas = prod.precio_secundario
+      ? prod.precio_secundario
+      : Math.max(0, prod.precio - precioPapasCombo);
+    precioConPapas = precioSinPapas + precioPapasCombo;
+  } else if (esCompleto) {
+    precioSinPapas = prod.precio;
+    precioConPapas = prod.precio + precioPapasCombo;
   }
+
+  const precioActual = tieneOpcionPapas
+    ? (conPapas ? precioConPapas : precioSinPapas)
+    : prod.precio;
+
+  const opcionNombre = tieneOpcionPapas
+    ? (conPapas ? 'Con Papas Fritas' : 'Sin Papas')
+    : '';
 
   const cantidad = getItemQuantity(prod.id, opcionNombre);
 
@@ -105,11 +117,11 @@ function ProductRow({ prod, categoriaSlug }: { prod: Producto; categoriaSlug?: s
             </p>
           )}
 
-          {/* Selector de Papas para la sección de COMPLETOS */}
-          {esCompleto && (
+          {/* Selector Unificado de Papas para Sandwich y Completos */}
+          {tieneOpcionPapas && (
             <div className="mt-2.5 flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-bold text-zinc-400">Opción:</span>
-              <div className="inline-flex rounded-lg bg-zinc-900/90 p-0.5 border border-white/10 text-xs">
+              <div className="inline-flex rounded-lg bg-zinc-900/90 p-0.5 border border-white/10 text-xs shadow-inner">
                 <button
                   type="button"
                   onClick={() => setConPapas(false)}
@@ -119,7 +131,7 @@ function ProductRow({ prod, categoriaSlug }: { prod: Producto; categoriaSlug?: s
                       : 'text-zinc-400 hover:text-white'
                   }`}
                 >
-                  Solo Completo ({formatoPrecio(prod.precio)})
+                  Sin Papas ({formatoPrecio(precioSinPapas)})
                 </button>
                 <button
                   type="button"
@@ -130,39 +142,8 @@ function ProductRow({ prod, categoriaSlug }: { prod: Producto; categoriaSlug?: s
                       : 'text-amber-400/90 hover:text-amber-300'
                   }`}
                 >
-                  <span>🍟 + Papas Fritas</span>
-                  <span className="opacity-90">({formatoPrecio(prod.precio + precioPapasCompletos)})</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Selector de Papas si el producto tiene precio secundario (Sándwiches) */}
-          {!esCompleto && prod.precio_secundario && (
-            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] font-bold text-zinc-400">Opción:</span>
-              <div className="inline-flex rounded-lg bg-zinc-900/90 p-0.5 border border-white/10 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setSinPapas(false)}
-                  className={`px-2 py-1 rounded-md font-bold transition text-[11px] ${
-                    !sinPapas
-                      ? 'bg-amber-500 text-black shadow'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Con Papas ({formatoPrecio(prod.precio)})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSinPapas(true)}
-                  className={`px-2 py-1 rounded-md font-bold transition text-[11px] ${
-                    sinPapas
-                      ? 'bg-amber-500 text-black shadow'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {prod.etiqueta_precio_secundario || 'Sin Papas'} ({formatoPrecio(prod.precio_secundario)})
+                  <span>🍟 Con Papas</span>
+                  <span className="opacity-90">({formatoPrecio(precioConPapas)})</span>
                 </button>
               </div>
             </div>
@@ -222,7 +203,11 @@ function ProductRow({ prod, categoriaSlug }: { prod: Producto; categoriaSlug?: s
   );
 }
 
-export function CategorySection({ categoria, productos }: CategorySectionProps) {
+export function CategorySection({
+  categoria,
+  productos,
+  precioPapasCombo = 1500,
+}: CategorySectionProps) {
   if (productos.length === 0) return null;
 
   return (
@@ -264,7 +249,7 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
         {categoria.slug === 'sandwiches' && (
           <div className="my-3 text-center">
             <span className="inline-block px-4 py-1.5 rounded-full bg-black/75 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-lg">
-              🍟 Todos los Sándwich incluyen Deliciosas Papas Fritas
+              🍟 Elige tus Sándwiches con o sin papas fritas
             </span>
           </div>
         )}
@@ -272,7 +257,12 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
         {/* 3. MENU ITEMS LIST */}
         <div className="space-y-3 mt-3">
           {productos.map((prod) => (
-            <ProductRow key={prod.id} prod={prod} categoriaSlug={categoria.slug} />
+            <ProductRow
+              key={prod.id}
+              prod={prod}
+              categoriaSlug={categoria.slug}
+              precioPapasCombo={precioPapasCombo}
+            />
           ))}
         </div>
 

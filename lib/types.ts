@@ -41,4 +41,6 @@ export interface ConfiguracionTV {
   segundos_rotacion: number;
   cintillo_texto: string;
   portada_url?: string;
+  precio_papas_combo?: number;
 }
+

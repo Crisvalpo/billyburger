@@ -666,11 +666,14 @@ export const CONFIG_TV_INICIAL: ConfiguracionTV[] = [
     nombre: 'Pantalla 1 - Burgers & Papas Fritas',
     segundos_rotacion: 12,
     cintillo_texto: '🔥 ¡Bienvenido a Billy Burger! Pide en caja o al WhatsApp +56 9 3255 3527 • Todas las burgers y sándwiches incluyen crujientes papas fritas',
+    precio_papas_combo: 1500,
   },
   {
     pantalla_id: 2,
     nombre: 'Pantalla 2 - Chorrillanas & Sándwiches',
     segundos_rotacion: 12,
     cintillo_texto: '🔥 Prueba nuestras Chorrillanas y Sándwiches XL • Eventos y celebraciones a pedido al +56 9 3255 3527',
+    precio_papas_combo: 1500,
   },
 ];
+

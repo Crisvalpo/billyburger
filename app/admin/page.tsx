@@ -77,6 +77,50 @@ export default function AdminPage() {
     }
   }, [categorias, nuevaCatId]);
 
+  // Configuración de Papas Fritas (Sándwiches y Completos)
+  const [precioPapasInput, setPrecioPapasInput] = useState<number>(1500);
+  const [guardandoPapas, setGuardandoPapas] = useState<boolean>(false);
+  const [papasGuardadoExito, setPapasGuardadoExito] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (configTV[0]?.precio_papas_combo !== undefined) {
+      setPrecioPapasInput(configTV[0].precio_papas_combo);
+    }
+  }, [configTV]);
+
+  const handleGuardarPrecioPapas = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!precioPapasInput || precioPapasInput <= 0) {
+      alert('Ingresa un valor válido para el adicional de papas');
+      return;
+    }
+
+    try {
+      setGuardandoPapas(true);
+      setPapasGuardadoExito(false);
+
+      if (configTV[0]) {
+        await updateConfigTV({
+          ...configTV[0],
+          precio_papas_combo: precioPapasInput,
+        });
+      }
+      if (configTV[1]) {
+        await updateConfigTV({
+          ...configTV[1],
+          precio_papas_combo: precioPapasInput,
+        });
+      }
+
+      setPapasGuardadoExito(true);
+      setTimeout(() => setPapasGuardadoExito(false), 3000);
+    } catch (err: any) {
+      alert('Error guardando precio de papas: ' + err.message);
+    } finally {
+      setGuardandoPapas(false);
+    }
+  };
+
   const formatoPrecio = (precio: number) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
@@ -84,6 +128,7 @@ export default function AdminPage() {
       maximumFractionDigits: 0,
     }).format(precio);
   };
+
 
   const handleFileUpload = async (file: File, isEdit: boolean) => {
     try {
@@ -458,12 +503,62 @@ export default function AdminPage() {
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            ⭐ Foto de Portada (Hero)
+            ⭐ Portada & Ajustes Menú
           </button>
         </div>
 
         {activeTab === 'portada' ? (
           <div className="max-w-xl mx-auto space-y-6">
+            {/* Card: Configuración Global de Opciones de Papas Fritas */}
+            <div className="p-5 rounded-3xl bg-[#12141c] border border-amber-500/40 shadow-2xl">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl shadow">
+                  🍟
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    Precio Opción Papas Fritas
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Ajuste dinámico para Sándwiches y Completos
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-zinc-300 leading-relaxed mb-4">
+                Define el valor adicional que se sumará automáticamente cuando un cliente seleccione la opción <strong>&ldquo;🍟 Con Papas&rdquo;</strong> en la carta. Si en el futuro sube el precio de las papas, modifícalo aquí sin tocar el código.
+              </p>
+
+              <form onSubmit={handleGuardarPrecioPapas} className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-sm font-bold">$</span>
+                  <input
+                    type="number"
+                    step="100"
+                    min="0"
+                    value={precioPapasInput}
+                    onChange={(e) => setPrecioPapasInput(Number(e.target.value))}
+                    className="w-full pl-8 pr-4 py-2.5 bg-black/70 border border-white/10 rounded-xl text-amber-400 font-mono font-bold text-base focus:border-amber-500 focus:outline-none"
+                    placeholder="1500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={guardandoPapas}
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-black font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-amber-500/20 disabled:opacity-50 shrink-0"
+                >
+                  {guardandoPapas ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : papasGuardadoExito ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  <span>{papasGuardadoExito ? '¡Guardado!' : 'Guardar Precio'}</span>
+                </button>
+              </form>
+            </div>
+
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed">
               ⭐ <strong>Imagen de Portada (Hero Móvil):</strong> Esta es la foto destacada que ven los clientes en la parte superior de la carta (debajo del logo de Billy Burger y sobre el selector de pedidos). Puedes subir cualquier imagen en formato PNG o JPG, reemplazarla o quitarla cuando lo desees.
             </div>
@@ -590,6 +685,55 @@ export default function AdminPage() {
           </div>
         ) : (
           <>
+            {/* Card: Configuración Global de Opciones de Papas Fritas en la pestaña Productos */}
+            <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-[#17130b] via-[#12141c] to-[#12141c] border border-amber-500/30 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl shadow">
+                  🍟
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                    <span>Precio Opción Papas Fritas</span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Sándwiches & Completos
+                    </span>
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Valor adicional que se suma automáticamente al elegir &ldquo;Con Papas&rdquo;.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleGuardarPrecioPapas} className="flex items-center gap-2.5 w-full sm:w-auto">
+                <div className="relative flex-1 sm:w-36">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-bold">$</span>
+                  <input
+                    type="number"
+                    step="100"
+                    min="0"
+                    value={precioPapasInput}
+                    onChange={(e) => setPrecioPapasInput(Number(e.target.value))}
+                    className="w-full pl-6 pr-3 py-1.5 bg-black/60 border border-white/10 rounded-xl text-amber-400 font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
+                    placeholder="1500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={guardandoPapas}
+                  className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-black font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 shadow-md shadow-amber-500/20 disabled:opacity-50 shrink-0"
+                >
+                  {guardandoPapas ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : papasGuardadoExito ? (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  <span>{papasGuardadoExito ? '¡Guardado!' : 'Guardar'}</span>
+                </button>
+              </form>
+            </div>
+
             {/* Filter Bar */}
             <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
           <button
