@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useMenuData } from '@/lib/store';
-import { Producto, ConfiguracionHorario } from '@/lib/types';
+import { Producto, Categoria, ConfiguracionHorario } from '@/lib/types';
 import { AdminAuthLock } from '@/components/AdminAuthLock';
 import { HORARIO_DEFAULT, verificarEstadoHorario, getFechaHoraChile } from '@/lib/horario';
 import {
@@ -22,6 +22,8 @@ import {
   Loader2,
   Lock,
   Clock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -43,6 +45,8 @@ export default function AdminPage() {
     productos,
     configTV,
     updateCategoria,
+    addCategoria,
+    deleteCategoria,
     updateProducto,
     updateConfigTV,
     addProducto,
@@ -201,7 +205,17 @@ export default function AdminPage() {
   const fileInputEditRef = useRef<HTMLInputElement>(null);
   const fileInputNewRef = useRef<HTMLInputElement>(null);
   const fileInputCatRef = useRef<HTMLInputElement>(null);
+  const fileInputNewCatRef = useRef<HTMLInputElement>(null);
   const fileInputPortadaRef = useRef<HTMLInputElement>(null);
+
+  // Formulario nueva categoría
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState<boolean>(false);
+  const [nuevoCatNombre, setNuevoCatNombre] = useState<string>('');
+  const [nuevoCatSlug, setNuevoCatSlug] = useState<string>('');
+  const [nuevoCatOrden, setNuevoCatOrden] = useState<number>(categorias.length + 1);
+  const [nuevoCatIcono, setNuevoCatIcono] = useState<string>('Utensils');
+  const [nuevoCatImagen, setNuevoCatImagen] = useState<string>('');
+  const [nuevoCatActivo, setNuevoCatActivo] = useState<boolean>(true);
 
   // Formulario nuevo producto
   const [nuevoNombre, setNuevoNombre] = useState('');
@@ -427,8 +441,97 @@ export default function AdminPage() {
   const handleSaveEditCategoria = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCategoria) return;
-    await updateCategoria(editingCategoria);
-    setEditingCategoria(null);
+    try {
+      await updateCategoria(editingCategoria);
+      setEditingCategoria(null);
+    } catch (err: any) {
+      alert('Error guardando cambios de categoría: ' + err.message);
+    }
+  };
+
+  const handleCrearCategoria = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nuevoCatNombre.trim()) return;
+
+    const slugFinal = nuevoCatSlug.trim()
+      ? nuevoCatSlug.trim().toLowerCase()
+      : nuevoCatNombre
+          .toLowerCase()
+          .trim()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+
+    const nuevaCat: Categoria = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'cat-' + Date.now(),
+      nombre: nuevoCatNombre.trim(),
+      slug: slugFinal,
+      orden: Number(nuevoCatOrden) || (categorias.length + 1),
+      icono: nuevoCatIcono || 'Utensils',
+      imagen_url: nuevoCatImagen || '',
+      activo: nuevoCatActivo,
+    };
+
+    try {
+      await addCategoria(nuevaCat);
+      setShowAddCategoryModal(false);
+      setNuevoCatNombre('');
+      setNuevoCatSlug('');
+      setNuevoCatImagen('');
+      alert(`✅ Categoría "${nuevaCat.nombre}" creada con éxito.`);
+    } catch (err: any) {
+      alert('Error creando categoría: ' + err.message);
+    }
+  };
+
+  const handleDeleteCategoria = async (cat: Categoria) => {
+    const prodsCount = productos.filter((p) => p.categoria_id === cat.id).length;
+    let mensaje = `¿Estás seguro de eliminar la categoría "${cat.nombre}"?`;
+    if (prodsCount > 0) {
+      mensaje += `\n\n⚠️ Atención: Contiene ${prodsCount} producto(s) asociado(s) que también serán eliminados de la carta.`;
+    }
+    if (!confirm(mensaje)) return;
+
+    try {
+      await deleteCategoria(cat.id);
+      alert(`Categoría "${cat.nombre}" eliminada correctamente.`);
+    } catch (err: any) {
+      alert('Error eliminando categoría: ' + err.message);
+    }
+  };
+
+  const handleToggleActivoCategoria = async (cat: Categoria) => {
+    try {
+      await updateCategoria({
+        ...cat,
+        activo: !cat.activo,
+      });
+    } catch (err: any) {
+      alert('Error actualizando estado de la categoría: ' + err.message);
+    }
+  };
+
+  const handleNewCategoryUpload = async (file: File) => {
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.url) {
+        setNuevoCatImagen(data.url);
+      } else {
+        alert(data.error || 'Error al subir imagen');
+      }
+    } catch (e: any) {
+      alert('Error al subir imagen: ' + e.message);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleStartEdit = (p: Producto) => {
@@ -528,32 +631,37 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#090a0d] text-zinc-100 font-sans pb-24">
-      {/* Top Admin Header */}
-      <header className="sticky top-0 z-40 bg-[#101217]/95 backdrop-blur-md border-b border-white/10 px-4 py-3">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      {/* Top Admin Header - Totalmente Responsivo para Móviles y Desktop */}
+      <header className="sticky top-0 z-40 bg-[#101217]/95 backdrop-blur-md border-b border-white/10 px-3 sm:px-4 py-2.5 sm:py-3 shadow-xl">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
+          {/* Logo y Volver */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               href="/"
-              className="w-9 h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-300 hover:text-white transition"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-300 hover:text-white transition shrink-0"
               title="Volver a la Carta"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
-            <div>
-              <h1 className="text-lg font-black text-white flex items-center gap-2">
-                Panel de Administración <span className="text-amber-400">BillyBurger</span>
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-lg font-black text-white flex items-center gap-1 sm:gap-2 truncate">
+                <span>Admin</span>
+                <span className="text-amber-400">BillyBurger</span>
               </h1>
-              <p className="text-xs text-zinc-400">
+              <p className="hidden sm:block text-xs text-zinc-400">
                 Ajusta imágenes, precios y disponibilidad en tiempo real
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Botones de Cabecera */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* TV Menuboard links - Visibles en tablets/PC para no saturar móviles */}
             <Link
               href="/tv?pantalla=1"
               target="_blank"
-              className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold flex items-center gap-1.5 text-zinc-300 transition"
+              className="hidden md:flex px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold items-center gap-1 text-zinc-300 transition"
+              title="Ver Pantalla TV 1"
             >
               <Tv className="w-3.5 h-3.5 text-amber-400" />
               <span>TV 1</span>
@@ -561,102 +669,128 @@ export default function AdminPage() {
             <Link
               href="/tv?pantalla=2"
               target="_blank"
-              className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold flex items-center gap-1.5 text-zinc-300 transition"
+              className="hidden md:flex px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold items-center gap-1 text-zinc-300 transition"
+              title="Ver Pantalla TV 2"
             >
               <Tv className="w-3.5 h-3.5 text-amber-400" />
               <span>TV 2</span>
             </Link>
+
+            {/* BOTÓN PRINCIPAL NUEVO - SIEMPRE VISIBLE EN LA CABECERA MÓVIL */}
+            {activeTab === 'secciones' ? (
+              <button
+                type="button"
+                onClick={() => setShowAddCategoryModal(true)}
+                className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black flex items-center gap-1.5 transition shadow-lg shadow-amber-500/25 active:scale-95 shrink-0"
+                title="Crear Nueva Categoría"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span className="inline">+ Categoría</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black flex items-center gap-1.5 transition shadow-lg shadow-amber-500/25 active:scale-95 shrink-0"
+                title="Crear Nuevo Producto"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span className="inline">+ Nuevo</span>
+              </button>
+            )}
+
+            {/* Botón Bloquear / Cerrar Sesión */}
             <button
-              onClick={() => setShowAddModal(true)}
-              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-extrabold flex items-center gap-1.5 transition shadow-md shadow-amber-500/20"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nuevo</span>
-            </button>
-            <button
+              type="button"
               onClick={() => {
                 if (typeof window !== 'undefined') {
                   sessionStorage.removeItem('billy_admin_auth');
                 }
                 setIsAuthenticated(false);
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 text-xs font-bold flex items-center gap-1 transition border border-white/5"
+              className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 text-xs font-bold flex items-center gap-1 transition border border-white/5 shrink-0"
               title="Cerrar sesión / Bloquear panel"
             >
               <Lock className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Bloquear</span>
+              <span className="hidden lg:inline">Bloquear</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Main Admin Content */}
-      <main className="max-w-5xl mx-auto px-4 mt-6">
-        {/* Quick Stats & Shortcuts */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <div className="bg-[#12141c] p-4 rounded-2xl border border-white/5">
-            <span className="text-xs text-zinc-400 uppercase font-bold">Total Productos</span>
-            <p className="text-2xl font-black text-white mt-1">{productos.length}</p>
+      <main className="max-w-5xl mx-auto px-3 sm:px-4 mt-4 sm:mt-6">
+        {/* Quick Stats - 3 Columnas compactas en móviles y desktop */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+          <div className="bg-[#12141c] p-2.5 sm:p-4 rounded-2xl border border-white/5 text-center sm:text-left">
+            <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold block truncate">
+              Productos
+            </span>
+            <p className="text-xl sm:text-2xl font-black text-white mt-0.5">{productos.length}</p>
           </div>
-          <div className="bg-[#12141c] p-4 rounded-2xl border border-white/5">
-            <span className="text-xs text-zinc-400 uppercase font-bold">En Cartelería TV</span>
-            <p className="text-2xl font-black text-amber-400 mt-1">
+          <div className="bg-[#12141c] p-2.5 sm:p-4 rounded-2xl border border-white/5 text-center sm:text-left">
+            <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold block truncate">
+              En Pantallas TV
+            </span>
+            <p className="text-xl sm:text-2xl font-black text-amber-400 mt-0.5">
               {productos.filter((p) => p.mostrar_en_tv && p.disponible).length}
             </p>
           </div>
-          <div className="bg-[#12141c] p-4 rounded-2xl border border-white/5">
-            <span className="text-xs text-zinc-400 uppercase font-bold">Agotados / Ocultos</span>
-            <p className="text-2xl font-black text-red-400 mt-1">
+          <div className="bg-[#12141c] p-2.5 sm:p-4 rounded-2xl border border-white/5 text-center sm:text-left">
+            <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold block truncate">
+              Agotados
+            </span>
+            <p className="text-xl sm:text-2xl font-black text-red-400 mt-0.5">
               {productos.filter((p) => !p.disponible).length}
             </p>
           </div>
         </div>
 
-        {/* Mode Switch: Productos vs Imágenes de Secciones vs Portada */}
-        <div className="flex items-center gap-2 sm:gap-3 mb-6 p-1.5 rounded-2xl bg-[#12141c] border border-white/10 w-fit flex-wrap">
+        {/* Mode Switch: Carrusel horizontal suave en móviles */}
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 mb-5 p-1.5 rounded-2xl bg-[#12141c] border border-white/10 max-w-full scrollbar-none">
           <button
             onClick={() => setActiveTab('productos')}
-            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition ${
+            className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-black transition shrink-0 whitespace-nowrap ${
               activeTab === 'productos'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            🍔 Lista de Productos ({productos.length})
+            🍔 Productos ({productos.length})
           </button>
           <button
             onClick={() => setActiveTab('secciones')}
-            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition ${
+            className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-black transition shrink-0 whitespace-nowrap ${
               activeTab === 'secciones'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            🖼️ Imágenes de Secciones ({categorias.length})
+            🖼️ Secciones ({categorias.length})
           </button>
           <button
             onClick={() => setActiveTab('portada')}
-            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition ${
+            className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-black transition shrink-0 whitespace-nowrap ${
               activeTab === 'portada'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            ⭐ Portada & Ajustes Menú
+            ⭐ Portada
           </button>
           <button
             onClick={() => setActiveTab('horarios')}
-            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition ${
+            className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-black transition shrink-0 whitespace-nowrap ${
               activeTab === 'horarios'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            ⏰ Horarios de Atención
+            ⏰ Horarios
           </button>
           <button
             onClick={() => setActiveTab('guincha')}
-            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition ${
+            className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-black transition shrink-0 whitespace-nowrap ${
               activeTab === 'guincha'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
                 : 'text-zinc-400 hover:text-white'
@@ -1145,19 +1279,40 @@ export default function AdminPage() {
           </div>
         ) : activeTab === 'secciones' ? (
           <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
-              💡 Aquí puedes <strong>subir o cambiar la foto principal de cabecera</strong> para cada sección (Hamburguesas, Sándwiches, Fajitas, etc.). Cada foto que subas va directo al bucket de Supabase y puedes eliminarla cuando desees.
+            {/* Barra Superior de Secciones con Botón Nueva Categoría */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-[#12141c] to-[#12141c] border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl">
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                  <span>Secciones y Categorías ({categorias.length})</span>
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Organiza la carta, añade nuevas secciones (Postres, Promociones, etc.) o sube fotos de cabecera.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddCategoryModal(true)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-lg shadow-amber-500/20 active:scale-95 shrink-0"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>+ Nueva Categoría</span>
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
               {categorias.map((cat) => {
+                const prodsCount = productos.filter((p) => p.categoria_id === cat.id).length;
                 return (
                   <div
                     key={cat.id}
-                    className="p-5 rounded-2xl bg-[#12141c] border border-white/5 flex items-center justify-between gap-4 shadow-lg hover:border-amber-500/30 transition"
+                    className={`p-4 sm:p-5 rounded-2xl bg-[#12141c] border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 shadow-lg ${
+                      cat.activo === false
+                        ? 'border-red-900/40 opacity-70'
+                        : 'border-white/5 hover:border-amber-500/30'
+                    }`}
                   >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="relative w-20 h-20 rounded-2xl bg-black/60 border border-white/10 p-1 overflow-hidden shrink-0 flex items-center justify-center">
+                    <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/60 border border-white/10 p-1 overflow-hidden shrink-0 flex items-center justify-center">
                         {cat.imagen_url ? (
                           <Image
                             src={cat.imagen_url}
@@ -1172,22 +1327,67 @@ export default function AdminPage() {
                           </div>
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="text-base font-black text-white truncate">{cat.nombre}</h3>
-                        <p className="text-xs text-zinc-400 font-mono">#{cat.slug}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base font-black text-white truncate">{cat.nombre}</h3>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              cat.activo !== false
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                            }`}
+                          >
+                            {cat.activo !== false ? 'Activa' : 'Oculta'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-400 font-mono mt-0.5">#{cat.slug} • Orden: {cat.orden}</p>
                         <span className="text-[11px] text-amber-400/90 font-medium block mt-1">
-                          {productos.filter((p) => p.categoria_id === cat.id).length} productos asociados
+                          {prodsCount} producto(s) asociado(s)
                         </span>
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => setEditingCategoria({ ...cat, imagen_url: cat.imagen_url || '' })}
-                      className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black text-zinc-200 text-xs font-black transition flex items-center gap-1.5 shrink-0"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                      <span>{cat.imagen_url ? 'Cambiar Foto' : 'Subir Foto'}</span>
-                    </button>
+                    {/* Botones de acción de la categoría */}
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 border-white/10 pt-2.5 sm:pt-0">
+                      {/* Toggle Activo */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActivoCategoria(cat)}
+                        className={`p-2 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                          cat.activo !== false
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
+                            : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                        }`}
+                        title={cat.activo !== false ? 'Ocultar categoría de la carta' : 'Activar categoría en la carta'}
+                      >
+                        {cat.activo !== false ? (
+                          <Eye className="w-4 h-4" />
+                        ) : (
+                          <EyeOff className="w-4 h-4" />
+                        )}
+                      </button>
+
+                      {/* Editar datos y foto */}
+                      <button
+                        type="button"
+                        onClick={() => setEditingCategoria({ ...cat, imagen_url: cat.imagen_url || '' })}
+                        className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black text-zinc-200 text-xs font-black transition flex items-center gap-1.5 shrink-0"
+                        title="Editar nombre, orden y foto"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Editar</span>
+                      </button>
+
+                      {/* Eliminar categoría */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCategoria(cat)}
+                        className="p-2 rounded-xl bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition"
+                        title="Eliminar categoría"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -1195,6 +1395,29 @@ export default function AdminPage() {
           </div>
         ) : (
           <>
+            {/* Barra superior de productos con botón de creación directa */}
+            <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-[#12141c] to-[#12141c] border border-amber-500/30 flex items-center justify-between gap-3 shadow-lg">
+              <div className="min-w-0">
+                <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                  <span>Productos de la Carta</span>
+                  <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
+                    {productosFiltrados.length} en pantalla
+                  </span>
+                </h2>
+                <p className="text-xs text-zinc-400 mt-0.5 hidden sm:block">
+                  Crea productos, ajusta imágenes, precios y disponibilidad en tiempo real
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-lg shadow-amber-500/25 active:scale-95 shrink-0"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>+ Nuevo Producto</span>
+              </button>
+            </div>
+
             {/* Card: Configuración Global de Opciones de Papas Fritas en la pestaña Productos */}
             <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-[#17130b] via-[#12141c] to-[#12141c] border border-amber-500/30 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1691,12 +1914,23 @@ export default function AdminPage() {
 
       {/* MODAL CREAR NUEVO PRODUCTO */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#13151e] border border-white/10 rounded-3xl p-6 max-w-md w-full shadow-2xl my-8">
-            <h2 className="text-xl font-black text-white">Nuevo Producto</h2>
-            <p className="text-xs text-zinc-400 mt-1">
-              Se creará y reflejará automáticamente en la web y en la TV
-            </p>
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-[#13151e] border border-white/10 rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl my-6 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div>
+                <h2 className="text-lg sm:text-xl font-black text-white">Nuevo Producto</h2>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Se reflejará automáticamente en la web y en la TV
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             <form onSubmit={handleCrearProducto} className="mt-4 space-y-3">
               <div>
@@ -1883,16 +2117,210 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* MODAL EDITAR IMAGEN DE SECCIÓN / CATEGORÍA */}
-      {editingCategoria && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#13151e] border border-white/10 rounded-3xl p-6 max-w-lg w-full shadow-2xl my-8">
+      {/* BOTÓN FLOTANTE (FAB) PARA MÓVILES - SIEMPRE ACCESIBLE BAJO EL PULGAR */}
+      <div className="sm:hidden fixed bottom-5 right-4 z-40">
+        {activeTab === 'secciones' ? (
+          <button
+            type="button"
+            onClick={() => setShowAddCategoryModal(true)}
+            className="px-4 py-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_8px_25px_rgba(245,158,11,0.55)] active:scale-95 transition-all border border-amber-300/40"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>+ Nueva Categoría</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_8px_25px_rgba(245,158,11,0.55)] active:scale-95 transition-all border border-amber-300/40"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>+ Nuevo Producto</span>
+          </button>
+        )}
+      </div>
+
+      {/* MODAL CREAR NUEVA CATEGORÍA */}
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-[#13151e] border border-white/10 rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl my-6 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Edit className="w-5 h-5 text-amber-400" />
-                Imagen de Sección: {editingCategoria.nombre}
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-white">Nueva Categoría</h2>
+                  <p className="text-xs text-zinc-400">
+                    Se reflejará en la carta web y menuboard TV
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddCategoryModal(false)}
+                className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCrearCategoria} className="mt-4 space-y-3.5">
+              <div>
+                <label className="text-xs font-bold text-zinc-300 block mb-1">
+                  Nombre de la Categoría *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={nuevoCatNombre}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNuevoCatNombre(val);
+                    if (!nuevoCatSlug || nuevoCatSlug === '') {
+                      const slug = val
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-+|-+$/g, '');
+                      setNuevoCatSlug(slug);
+                    }
+                  }}
+                  placeholder="Ej: Postres, Promociones, Cafetería..."
+                  className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1">
+                    Slug (URL / ancla)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={nuevoCatSlug}
+                    onChange={(e) => setNuevoCatSlug(e.target.value.toLowerCase().trim())}
+                    placeholder="ej: postres"
+                    className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-amber-400 text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1">
+                    Orden en la Carta
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={nuevoCatOrden}
+                    onChange={(e) => setNuevoCatOrden(parseInt(e.target.value, 10) || 1)}
+                    className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Subir Foto de Cabecera Opcional */}
+              <div className="p-3 bg-zinc-900 rounded-xl border border-white/10">
+                <label className="text-xs font-bold text-zinc-300 block mb-1">
+                  Foto de Cabecera / Cutout (Opcional)
+                </label>
+                <p className="text-[11px] text-zinc-400 mb-2">
+                  Imagen decorativa que acompaña el encabezado de la sección en la carta
+                </p>
+
+                <input
+                  type="file"
+                  ref={fileInputNewCatRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleNewCategoryUpload(file);
+                  }}
+                />
+
+                <button
+                  type="button"
+                  disabled={isUploading}
+                  onClick={() => fileInputNewCatRef.current?.click()}
+                  className="w-full py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-500/30 transition mb-2"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isUploading ? 'Subiendo imagen...' : 'Subir imagen para la sección'}</span>
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative w-12 h-12 rounded-xl bg-black overflow-hidden border border-white/10 shrink-0">
+                    {nuevoCatImagen ? (
+                      <Image src={nuevoCatImagen} alt="Preview" fill className="object-contain p-1" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                        <ImageIcon className="w-5 h-5" />
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={nuevoCatImagen}
+                    onChange={(e) => setNuevoCatImagen(e.target.value)}
+                    placeholder="URL de imagen o súbela arriba"
+                    className="flex-1 px-3 py-1.5 bg-black border border-white/10 rounded-xl text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-zinc-900/60 rounded-xl border border-white/10 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-white block">Activa en la Carta</span>
+                  <p className="text-[11px] text-zinc-400">Visible para clientes de inmediato</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={nuevoCatActivo}
+                  onChange={(e) => setNuevoCatActivo(e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 cursor-pointer"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCategoryModal(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUploading}
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black transition shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50"
+                >
+                  Crear Categoría
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR CATEGORÍA COMPLETA */}
+      {editingCategoria && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-[#13151e] border border-white/10 rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl my-6 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                <Edit className="w-4 h-4 text-amber-400" />
+                <span>Editar Categoría: {editingCategoria.nombre}</span>
               </h2>
               <button
+                type="button"
                 onClick={() => setEditingCategoria(null)}
                 className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white"
               >
@@ -1900,15 +2328,72 @@ export default function AdminPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditCategoria} className="mt-4 space-y-4">
+            <form onSubmit={handleSaveEditCategoria} className="mt-4 space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1">Nombre</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingCategoria.nombre}
+                    onChange={(e) =>
+                      setEditingCategoria({ ...editingCategoria, nombre: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1">Slug</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingCategoria.slug}
+                    onChange={(e) =>
+                      setEditingCategoria({ ...editingCategoria, slug: e.target.value.toLowerCase().trim() })
+                    }
+                    className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-amber-400 text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1">Orden en la Carta</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={editingCategoria.orden}
+                    onChange={(e) =>
+                      setEditingCategoria({ ...editingCategoria, orden: parseInt(e.target.value, 10) || 1 })
+                    }
+                    className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-6">
+                  <input
+                    type="checkbox"
+                    id="editCatActivoCheck"
+                    checked={editingCategoria.activo !== false}
+                    onChange={(e) =>
+                      setEditingCategoria({ ...editingCategoria, activo: e.target.checked })
+                    }
+                    className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 cursor-pointer"
+                  />
+                  <label htmlFor="editCatActivoCheck" className="text-xs font-bold text-zinc-300 cursor-pointer">
+                    Visible en la carta
+                  </label>
+                </div>
+              </div>
+
               <div className="p-4 bg-zinc-900/90 rounded-2xl border border-white/10">
                 <label className="text-xs font-bold text-amber-300 block mb-2">
-                  Vista Previa de la Sección
+                  Foto de Cabecera / Cutout Decorativo
                 </label>
 
                 {/* Previsualización actual */}
-                <div className="flex items-center justify-center p-4 rounded-xl bg-black/60 border border-amber-500/30 mb-3">
-                  <div className="relative w-40 h-28">
+                <div className="flex items-center justify-center p-3 rounded-xl bg-black/60 border border-amber-500/30 mb-3">
+                  <div className="relative w-36 h-24 sm:w-44 sm:h-28">
                     {editingCategoria.imagen_url ? (
                       <Image
                         src={editingCategoria.imagen_url}
@@ -1918,7 +2403,7 @@ export default function AdminPage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs">
-                        Sin imagen
+                        Sin foto asignada
                       </div>
                     )}
                   </div>
@@ -1941,7 +2426,7 @@ export default function AdminPage() {
                     type="button"
                     disabled={isUploading}
                     onClick={() => fileInputCatRef.current?.click()}
-                    className="flex-1 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition shadow-md shadow-amber-500/20"
+                    className="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition shadow-md shadow-amber-500/20 active:scale-95 disabled:opacity-50"
                   >
                     {isUploading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1949,7 +2434,7 @@ export default function AdminPage() {
                       <Upload className="w-4 h-4" />
                     )}
                     <span>
-                      {isUploading ? 'Subiendo imagen a Supabase...' : 'Subir Imagen para esta Sección'}
+                      {isUploading ? 'Subiendo imagen...' : 'Subir Foto'}
                     </span>
                   </button>
 
@@ -1957,7 +2442,7 @@ export default function AdminPage() {
                     <button
                       type="button"
                       onClick={handleDeleteCategoryImage}
-                      className="px-3 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold transition flex items-center gap-1.5"
+                      className="px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold transition flex items-center gap-1.5"
                       title="Eliminar foto del bucket"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1967,7 +2452,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setEditingCategoria(null)}
@@ -1978,9 +2463,9 @@ export default function AdminPage() {
                 <button
                   type="submit"
                   disabled={isUploading}
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black transition shadow-lg shadow-amber-500/20"
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black transition shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50"
                 >
-                  Guardar Imagen
+                  Guardar Cambios
                 </button>
               </div>
             </form>

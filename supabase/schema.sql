@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS billy.categorias (
     slug TEXT NOT NULL UNIQUE,
     orden INT DEFAULT 0,
     icono TEXT DEFAULT 'Utensils',
+    imagen_url TEXT,
     activo BOOLEAN DEFAULT true,
     creado_el TIMESTAMPTZ DEFAULT now()
 );
@@ -58,6 +59,7 @@ CREATE TABLE IF NOT EXISTS billy.configuracion_tv (
 );
 
 -- 5. Habilitar Realtime para reflejo instantáneo en Smart TVs
+ALTER PUBLICATION supabase_realtime ADD TABLE billy.categorias;
 ALTER PUBLICATION supabase_realtime ADD TABLE billy.productos;
 ALTER PUBLICATION supabase_realtime ADD TABLE billy.eventos;
 ALTER PUBLICATION supabase_realtime ADD TABLE billy.configuracion_tv;

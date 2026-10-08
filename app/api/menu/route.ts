@@ -72,6 +72,56 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, data: updated });
       }
 
+      case 'addCategoria': {
+        const catData = { ...data };
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!catData.id || !uuidRegex.test(catData.id)) {
+          delete catData.id;
+        }
+
+        if (!catData.slug && catData.nombre) {
+          catData.slug = catData.nombre
+            .toLowerCase()
+            .trim()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        }
+
+        if (catData.orden === undefined || catData.orden === null) {
+          const { data: countData } = await supabaseAdmin
+            .from('categorias')
+            .select('orden')
+            .order('orden', { ascending: false })
+            .limit(1);
+          catData.orden = countData && countData.length > 0 ? (countData[0].orden || 0) + 1 : 1;
+        }
+
+        if (catData.activo === undefined) {
+          catData.activo = true;
+        }
+
+        const { data: inserted, error } = await supabaseAdmin
+          .from('categorias')
+          .insert(catData)
+          .select();
+        if (error) {
+          console.error('Error insertando en categorias:', error);
+          throw error;
+        }
+        return NextResponse.json({ success: true, data: inserted?.[0] || inserted });
+      }
+
+      case 'deleteCategoria': {
+        const { error } = await supabaseAdmin
+          .from('categorias')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+        return NextResponse.json({ success: true });
+      }
+
       case 'addProducto': {
         const prodData = { ...data };
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

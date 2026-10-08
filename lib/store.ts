@@ -166,6 +166,64 @@ export function useMenuData() {
     }
   };
 
+  // Función para agregar categoría
+  const addCategoria = async (nueva: Categoria) => {
+    try {
+      const res = await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'addCategoria', data: nueva }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const categoriaGuardada: Categoria = json.data || nueva;
+        setCategorias((prev) => [...prev, categoriaGuardada]);
+        if (typeof window !== 'undefined') {
+          const items = [...categorias, categoriaGuardada];
+          localStorage.setItem(STORAGE_KEYS.CATEGORIAS, JSON.stringify(items));
+          bc?.postMessage({ type: 'UPDATE_ALL' });
+        }
+        return categoriaGuardada;
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Error en servidor al guardar categoría');
+      }
+    } catch (e: any) {
+      console.error('Error adding categoria via /api/menu:', e);
+      setCategorias((prev) => [...prev, nueva]);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.CATEGORIAS, JSON.stringify([...categorias, nueva]));
+        bc?.postMessage({ type: 'UPDATE_ALL' });
+      }
+      throw e;
+    }
+  };
+
+  // Función para eliminar categoría
+  const deleteCategoria = async (id: string) => {
+    const nuevas = categorias.filter((c) => c.id !== id);
+    setCategorias(nuevas);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.CATEGORIAS, JSON.stringify(nuevas));
+      bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    try {
+      await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deleteCategoria', id }),
+      });
+    } catch (e) {
+      console.warn('Error deleting categoria via /api/menu:', e);
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('categorias').delete().eq('id', id);
+    }
+  };
+
   // Función para actualizar producto
   const updateProducto = async (productoActualizado: Producto) => {
     const nuevos = productos.map((p) => (p.id === productoActualizado.id ? productoActualizado : p));
@@ -289,6 +347,8 @@ export function useMenuData() {
     configTV,
     loading,
     updateCategoria,
+    addCategoria,
+    deleteCategoria,
     updateProducto,
     updateConfigTV,
     addProducto,
