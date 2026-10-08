@@ -102,9 +102,10 @@ export function useMenuData() {
 
     loadData();
 
-    // Suscripción Realtime Supabase
+    // 1. Suscripción Realtime Supabase
+    let channel: any = null;
     if (isSupabaseConfigured && supabase) {
-      const channel = supabase
+      channel = supabase
         .channel('billy-realtime')
         .on('postgres_changes', { event: '*', schema: 'billy', table: 'categorias' }, () => {
           loadData();
@@ -120,24 +121,33 @@ export function useMenuData() {
           loadData();
         })
         .subscribe();
-
-      return () => {
-        supabase?.removeChannel(channel);
-      };
     }
 
-    // Suscripción BroadcastChannel entre pestañas
+    // 2. Suscripción BroadcastChannel entre pestañas locales
+    let handleBcMessage: any = null;
     if (bc) {
-      const handleMessage = (event: MessageEvent) => {
+      handleBcMessage = (event: MessageEvent) => {
         if (event.data?.type === 'UPDATE_ALL') {
           loadData();
         }
       };
-      bc.addEventListener('message', handleMessage);
-      return () => {
-        bc.removeEventListener('message', handleMessage);
-      };
+      bc.addEventListener('message', handleBcMessage);
     }
+
+    // 3. Polling silencioso de respaldo cada 60 segundos (ideal para Smart TVs)
+    const pollingInterval = setInterval(() => {
+      loadData();
+    }, 60000);
+
+    return () => {
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+      if (bc && handleBcMessage) {
+        bc.removeEventListener('message', handleBcMessage);
+      }
+      clearInterval(pollingInterval);
+    };
   }, []);
 
   // Función para actualizar categoría

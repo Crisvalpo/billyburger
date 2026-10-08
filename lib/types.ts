@@ -60,6 +60,7 @@ export interface ConfiguracionTV {
   portada_url?: string;
   precio_papas_combo?: number;
   horario_atencion?: ConfiguracionHorario;
+  telefono_whatsapp?: string; // Número de WhatsApp para pedidos en web y TV
 }
 
 

@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useCart } from './CartContext';
+import { useMenuData } from '@/lib/store';
+import { getWhatsAppLink } from '@/lib/whatsapp';
 import { X, Trash2, Plus, Minus, MessageCircle, ShoppingBag, ArrowRight, Clock } from 'lucide-react';
 
 interface OrderDrawerProps {
@@ -11,6 +13,7 @@ interface OrderDrawerProps {
 }
 
 export function OrderDrawer({ localAbierto = true, mensajeCerrado }: OrderDrawerProps) {
+  const { configTV } = useMenuData();
   const { items, isOpen, setIsOpen, updateQuantity, removeItem, clearCart, totalItems, totalPrecio } = useCart();
   const [notas, setNotas] = useState('');
   const [nombreCliente, setNombreCliente] = useState('');
@@ -49,7 +52,7 @@ export function OrderDrawer({ localAbierto = true, mensajeCerrado }: OrderDrawer
 
     mensaje += `\n¡Hola! Quisiera confirmar este pedido, por favor.`;
 
-    const url = `https://wa.me/56932553527?text=${encodeURIComponent(mensaje)}`;
+    const url = getWhatsAppLink(configTV[0]?.telefono_whatsapp, mensaje);
     window.open(url, '_blank');
   };
 

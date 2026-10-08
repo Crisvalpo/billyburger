@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Phone, Tv, Settings, ShoppingBag } from 'lucide-react';
 import { Categoria } from '@/lib/types';
 import { useCart } from './CartContext';
+import { useMenuData } from '@/lib/store';
+import { getWhatsAppRaw } from '@/lib/whatsapp';
 
 interface NavbarProps {
   categorias: Categoria[];
@@ -15,6 +17,8 @@ interface NavbarProps {
 
 export function Navbar({ categorias, categoriaActiva, onSelectCategoria }: NavbarProps) {
   const { totalItems, setIsOpen } = useCart();
+  const { configTV } = useMenuData();
+  const phoneRaw = getWhatsAppRaw(configTV[0]?.telefono_whatsapp);
   return (
     <header className="sticky top-0 z-50 bg-[#140b04]/90 backdrop-blur-md border-b border-amber-600/30 transition-all shadow-2xl">
       {/* Main branding & quick WhatsApp */}
@@ -43,7 +47,7 @@ export function Navbar({ categorias, categoriaActiva, onSelectCategoria }: Navba
         {/* Botón de Orden Inteligente */}
         <div className="flex items-center gap-2">
           <a
-            href="tel:+56932553527"
+            href={`tel:+${phoneRaw}`}
             className="w-9 h-9 rounded-full bg-black/60 border border-amber-500/30 flex items-center justify-center text-amber-300 hover:text-white hover:bg-black transition"
             title="Llamar al local"
           >

@@ -4,12 +4,15 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { MessageCircle, Flame, Sparkles } from 'lucide-react';
 import { Producto } from '@/lib/types';
+import { useMenuData } from '@/lib/store';
+import { getWhatsAppLink } from '@/lib/whatsapp';
 
 interface ProductCardProps {
   producto: Producto;
 }
 
 export function ProductCard({ producto }: ProductCardProps) {
+  const { configTV } = useMenuData();
   // Manejo de opción con papas vs sin papas
   const [sinPapas, setSinPapas] = useState(false);
 
@@ -124,7 +127,7 @@ export function ProductCard({ producto }: ProductCardProps) {
       {/* Card Action Footer */}
       <div className="p-4 pt-0">
         <a
-          href={`https://wa.me/56932553527?text=${mensajeWhatsApp}`}
+          href={getWhatsAppLink(configTV[0]?.telefono_whatsapp, `Hola BillyBurger! Quiero pedir: ${producto.nombre}${sinPapas ? ' (Sin Papas)' : ''} - ${formatoPrecio(precioActual)}`)}
           target="_blank"
           rel="noopener noreferrer"
           className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-md ${

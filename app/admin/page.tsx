@@ -149,12 +149,16 @@ export default function AdminPage() {
     ]
   );
   const [nuevoMensajeInput, setNuevoMensajeInput] = useState<string>('');
+  const [whatsappInput, setWhatsappInput] = useState<string>('+56 9 3255 3527');
   const [guardandoGuincha, setGuardandoGuincha] = useState<boolean>(false);
   const [guinchaGuardadaExito, setGuinchaGuardadaExito] = useState<boolean>(false);
 
   useEffect(() => {
     if (configTV[0]?.cintillo_mensajes && configTV[0].cintillo_mensajes.length > 0) {
       setMensajesGuincha(configTV[0].cintillo_mensajes);
+    }
+    if (configTV[0]?.telefono_whatsapp) {
+      setWhatsappInput(configTV[0].telefono_whatsapp);
     }
   }, [configTV]);
 
@@ -181,6 +185,7 @@ export default function AdminPage() {
       if (configTV[0]) {
         await updateConfigTV({
           ...configTV[0],
+          telefono_whatsapp: whatsappInput.trim(),
           cintillo_mensajes: mensajesGuincha,
           cintillo_texto: mensajesGuincha[0] || configTV[0].cintillo_texto,
         });
@@ -188,6 +193,7 @@ export default function AdminPage() {
       if (configTV[1]) {
         await updateConfigTV({
           ...configTV[1],
+          telefono_whatsapp: whatsappInput.trim(),
           cintillo_mensajes: mensajesGuincha,
           cintillo_texto: mensajesGuincha[0] || configTV[1].cintillo_texto,
         });
@@ -1038,6 +1044,41 @@ export default function AdminPage() {
                   ) : (
                     <span>Agrega mensajes abajo para verlos en la guincha</span>
                   )}
+                </div>
+              </div>
+            </div>
+
+            {/* Configuración Dinámica de WhatsApp para toda la App y la TV */}
+            <div className="p-5 rounded-3xl bg-[#12141c] border border-amber-500/30 shadow-2xl space-y-3">
+              <div className="flex items-center gap-3 border-b border-white/10 pb-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl shadow">
+                  📱
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    Número de WhatsApp para Pedidos y Contacto
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Se sincroniza en vivo en el cintillo de la TV, la carta web, botones flotantes y confirmación de pedidos
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-amber-300 block mb-1.5">
+                  Teléfono / WhatsApp del Local:
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={whatsappInput}
+                    onChange={(e) => setWhatsappInput(e.target.value)}
+                    placeholder="+56 9 3255 3527"
+                    className="flex-1 px-4 py-2.5 bg-black/70 border border-white/10 rounded-xl text-sm text-white font-mono font-bold focus:border-amber-500 focus:outline-none"
+                  />
+                  <span className="text-xs text-zinc-400 hidden sm:inline">
+                    (Ej: +56 9 3255 3527)
+                  </span>
                 </div>
               </div>
             </div>
