@@ -1,11 +1,18 @@
-const CACHE_NAME = 'billyburger-pwa-v1';
+const CACHE_NAME = 'billyburger-pwa-v2';
 
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
+  '/admin/manifest.webmanifest',
+  '/tv/manifest.webmanifest',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-admin-192.png',
+  '/icon-admin-512.png',
+  '/icon-tv-192.png',
+  '/icon-tv-512.png',
   '/images/logo.png',
+  '/images/logo-icon.png',
   '/images/logo-text.png',
   '/images/madera-bg.jpg',
 ];
