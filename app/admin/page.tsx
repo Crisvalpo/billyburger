@@ -49,7 +49,7 @@ export default function AdminPage() {
     deleteProducto,
   } = useMenuData();
 
-  const [activeTab, setActiveTab] = useState<'productos' | 'secciones' | 'portada' | 'horarios'>('productos');
+  const [activeTab, setActiveTab] = useState<'productos' | 'secciones' | 'portada' | 'horarios' | 'guincha'>('productos');
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
@@ -133,6 +133,69 @@ export default function AdminPage() {
       );
       return { ...prev, dias };
     });
+  };
+
+  // Configuración y Gestión de Mensajes de la Guincha / Cintillo TV
+  const [mensajesGuincha, setMensajesGuincha] = useState<string[]>(
+    configTV[0]?.cintillo_mensajes || [
+      '🍔 ¡Pide tu combo con papas fritas crujientes!',
+      '🛵 Delivery y Retiro en Local disponible',
+      '🎉 Consulta por eventos y celebraciones al +56 9 3255 3527',
+      '⭐ Prueba nuestras Chorrillanas y Sándwiches artesanales',
+    ]
+  );
+  const [nuevoMensajeInput, setNuevoMensajeInput] = useState<string>('');
+  const [guardandoGuincha, setGuardandoGuincha] = useState<boolean>(false);
+  const [guinchaGuardadaExito, setGuinchaGuardadaExito] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (configTV[0]?.cintillo_mensajes && configTV[0].cintillo_mensajes.length > 0) {
+      setMensajesGuincha(configTV[0].cintillo_mensajes);
+    }
+  }, [configTV]);
+
+  const handleAgregarMensajeGuincha = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!nuevoMensajeInput.trim()) return;
+    setMensajesGuincha((prev) => [...prev, nuevoMensajeInput.trim()]);
+    setNuevoMensajeInput('');
+  };
+
+  const handleEliminarMensajeGuincha = (index: number) => {
+    setMensajesGuincha((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEditarMensajeGuincha = (index: number, nuevoTexto: string) => {
+    setMensajesGuincha((prev) => prev.map((m, i) => (i === index ? nuevoTexto : m)));
+  };
+
+  const handleGuardarGuincha = async () => {
+    try {
+      setGuardandoGuincha(true);
+      setGuinchaGuardadaExito(false);
+
+      if (configTV[0]) {
+        await updateConfigTV({
+          ...configTV[0],
+          cintillo_mensajes: mensajesGuincha,
+          cintillo_texto: mensajesGuincha[0] || configTV[0].cintillo_texto,
+        });
+      }
+      if (configTV[1]) {
+        await updateConfigTV({
+          ...configTV[1],
+          cintillo_mensajes: mensajesGuincha,
+          cintillo_texto: mensajesGuincha[0] || configTV[1].cintillo_texto,
+        });
+      }
+
+      setGuinchaGuardadaExito(true);
+      setTimeout(() => setGuinchaGuardadaExito(false), 3000);
+    } catch (err: any) {
+      alert('Error guardando mensajes de la guincha: ' + err.message);
+    } finally {
+      setGuardandoGuincha(false);
+    }
   };
 
   const fileInputEditRef = useRef<HTMLInputElement>(null);
@@ -591,6 +654,16 @@ export default function AdminPage() {
           >
             ⏰ Horarios de Atención
           </button>
+          <button
+            onClick={() => setActiveTab('guincha')}
+            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition ${
+              activeTab === 'guincha'
+                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            📢 Guincha TV ({mensajesGuincha.length})
+          </button>
         </div>
 
         {activeTab === 'horarios' ? (
@@ -811,6 +884,137 @@ export default function AdminPage() {
                 )}
                 <span>{horarioGuardadoExito ? '¡Horarios Guardados con Éxito!' : 'Guardar Horarios de Atención'}</span>
               </button>
+            </div>
+          </div>
+        ) : activeTab === 'guincha' ? (
+          <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-200">
+            {/* Banner explicativo */}
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 text-lg">
+                📢
+              </div>
+              <p>
+                <strong>Gestión de la Guincha / Cintillo TV:</strong> Los mensajes que configures aquí se mostrarán en la cinta animada inferior de las pantallas TV con texto grande y legible a distancia. Puedes agregar ofertas, avisos de delivery, números de contacto o eventos.
+              </p>
+            </div>
+
+            {/* Previsualización en Vivo de la Guincha */}
+            <div className="p-5 rounded-3xl bg-[#12141c] border border-white/10 shadow-2xl">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-black uppercase tracking-wider text-amber-400">
+                  Previsualización en Vivo de la Guincha (Texto Grande TV)
+                </span>
+                <span className="text-[11px] text-zinc-400">Visible a 3-4 metros</span>
+              </div>
+
+              <div className="w-full h-14 rounded-2xl bg-amber-500 text-black flex items-center overflow-hidden shadow-xl border-2 border-amber-400">
+                <div className="whitespace-nowrap animate-marquee flex items-center gap-10 pl-4 text-base sm:text-lg font-black uppercase tracking-wider">
+                  {mensajesGuincha.length > 0 ? (
+                    <>
+                      {mensajesGuincha.map((msg, i) => (
+                        <React.Fragment key={i}>
+                          <span>{msg}</span>
+                          <span className="text-black/40 text-lg">✦</span>
+                        </React.Fragment>
+                      ))}
+                      {mensajesGuincha.map((msg, i) => (
+                        <React.Fragment key={`rep-${i}`}>
+                          <span>{msg}</span>
+                          <span className="text-black/40 text-lg">✦</span>
+                        </React.Fragment>
+                      ))}
+                    </>
+                  ) : (
+                    <span>Agrega mensajes abajo para verlos en la guincha</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de Mensajes Activos */}
+            <div className="p-6 rounded-3xl bg-[#12141c] border border-white/10 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <span>Mensajes Activos en la Guincha</span>
+                  <span className="text-xs font-mono bg-zinc-800 text-amber-400 px-2.5 py-0.5 rounded-full border border-white/10">
+                    {mensajesGuincha.length}
+                  </span>
+                </h3>
+                <span className="text-xs text-zinc-400">Edita o elimina cada frase</span>
+              </div>
+
+              {mensajesGuincha.length === 0 ? (
+                <div className="py-8 text-center text-zinc-500 text-xs">
+                  No hay mensajes configurados. Agrega uno a continuación.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {mensajesGuincha.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 bg-zinc-900/90 rounded-2xl border border-white/5 flex items-center gap-3 shadow-md hover:border-amber-500/30 transition"
+                    >
+                      <span className="w-6 h-6 rounded-lg bg-black/60 text-amber-400 text-xs font-mono font-bold flex items-center justify-center shrink-0 border border-white/5">
+                        {idx + 1}
+                      </span>
+                      <input
+                        type="text"
+                        value={msg}
+                        onChange={(e) => handleEditarMensajeGuincha(idx, e.target.value)}
+                        className="flex-1 px-3 py-1.5 bg-black/50 border border-white/10 rounded-xl text-white font-medium text-xs sm:text-sm focus:border-amber-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleEliminarMensajeGuincha(idx)}
+                        className="p-2 rounded-xl bg-zinc-800 hover:bg-red-950 text-zinc-400 hover:text-red-400 transition shrink-0"
+                        title="Eliminar mensaje"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Formulario para Agregar Nuevo Mensaje */}
+              <form onSubmit={handleAgregarMensajeGuincha} className="pt-2 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={nuevoMensajeInput}
+                  onChange={(e) => setNuevoMensajeInput(e.target.value)}
+                  placeholder="Escribe un nuevo mensaje para la guincha (ej: 🍔 Promo Combo Burger + Papas $5.990)..."
+                  className="flex-1 px-4 py-2.5 bg-black/70 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-zinc-500 focus:border-amber-500 focus:outline-none font-medium"
+                />
+                <button
+                  type="submit"
+                  disabled={!nuevoMensajeInput.trim()}
+                  className="px-4 py-2.5 bg-zinc-800 hover:bg-amber-500 hover:text-black text-amber-300 font-extrabold text-xs uppercase tracking-wider rounded-xl transition disabled:opacity-40 shrink-0"
+                >
+                  + Agregar
+                </button>
+              </form>
+
+              {/* Botón Guardar Cambios en la Guincha */}
+              <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+                <span className="text-xs text-zinc-400">
+                  Se actualizará automáticamente en las pantallas TV conectadas.
+                </span>
+                <button
+                  type="button"
+                  disabled={guardandoGuincha}
+                  onClick={handleGuardarGuincha}
+                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-black font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                >
+                  {guardandoGuincha ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : guinchaGuardadaExito ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  <span>{guinchaGuardadaExito ? '¡Mensajes Guardados!' : 'Guardar Mensajes TV'}</span>
+                </button>
+              </div>
             </div>
           </div>
         ) : activeTab === 'portada' ? (

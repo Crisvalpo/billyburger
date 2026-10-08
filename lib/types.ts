@@ -56,6 +56,7 @@ export interface ConfiguracionTV {
   nombre: string;
   segundos_rotacion: number;
   cintillo_texto: string;
+  cintillo_mensajes?: string[]; // Lista de mensajes dinámicos para la guincha inferior
   portada_url?: string;
   precio_papas_combo?: number;
   horario_atencion?: ConfiguracionHorario;
