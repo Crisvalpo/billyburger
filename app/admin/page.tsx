@@ -676,29 +676,6 @@ export default function AdminPage() {
               <span>TV 2</span>
             </Link>
 
-            {/* BOTÓN PRINCIPAL NUEVO - SIEMPRE VISIBLE EN LA CABECERA MÓVIL */}
-            {activeTab === 'secciones' ? (
-              <button
-                type="button"
-                onClick={() => setShowAddCategoryModal(true)}
-                className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black flex items-center gap-1.5 transition shadow-lg shadow-amber-500/25 active:scale-95 shrink-0"
-                title="Crear Nueva Categoría"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span className="inline">+ Categoría</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowAddModal(true)}
-                className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black flex items-center gap-1.5 transition shadow-lg shadow-amber-500/25 active:scale-95 shrink-0"
-                title="Crear Nuevo Producto"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span className="inline">+ Nuevo</span>
-              </button>
-            )}
-
             {/* Botón Bloquear / Cerrar Sesión */}
             <button
               type="button"
@@ -1395,26 +1372,23 @@ export default function AdminPage() {
           </div>
         ) : (
           <>
-            {/* Barra superior de productos con botón de creación directa */}
-            <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-[#12141c] to-[#12141c] border border-amber-500/30 flex items-center justify-between gap-3 shadow-lg">
-              <div className="min-w-0">
-                <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
-                  <span>Productos de la Carta</span>
-                  <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
-                    {productosFiltrados.length} en pantalla
-                  </span>
+            {/* Cabecera del apartado Productos - Único botón para crear productos */}
+            <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#12141c] border border-white/5 shadow-lg">
+              <div className="flex items-center justify-between sm:justify-start gap-2.5">
+                <h2 className="text-base sm:text-lg font-black text-white">
+                  Carta de Productos
                 </h2>
-                <p className="text-xs text-zinc-400 mt-0.5 hidden sm:block">
-                  Crea productos, ajusta imágenes, precios y disponibilidad en tiempo real
-                </p>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono">
+                  {productosFiltrados.length}
+                </span>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddModal(true)}
-                className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-lg shadow-amber-500/25 active:scale-95 shrink-0"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-md shadow-amber-500/20 shrink-0"
               >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span>+ Nuevo Producto</span>
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>Nuevo Producto</span>
               </button>
             </div>
 
@@ -2117,28 +2091,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* BOTÓN FLOTANTE (FAB) PARA MÓVILES - SIEMPRE ACCESIBLE BAJO EL PULGAR */}
-      <div className="sm:hidden fixed bottom-5 right-4 z-40">
-        {activeTab === 'secciones' ? (
-          <button
-            type="button"
-            onClick={() => setShowAddCategoryModal(true)}
-            className="px-4 py-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_8px_25px_rgba(245,158,11,0.55)] active:scale-95 transition-all border border-amber-300/40"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Nueva Categoría</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className="px-4 py-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_8px_25px_rgba(245,158,11,0.55)] active:scale-95 transition-all border border-amber-300/40"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Nuevo Producto</span>
-          </button>
-        )}
-      </div>
 
       {/* MODAL CREAR NUEVA CATEGORÍA */}
       {showAddCategoryModal && (
