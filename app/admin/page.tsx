@@ -1713,7 +1713,7 @@ export default function AdminPage() {
                     onDragLeave={handleDragLeaveCat}
                     onDrop={(e) => handleDropCat(e, index)}
                     onDragEnd={handleDragEndCat}
-                    className={`p-3.5 sm:p-4 rounded-2xl bg-[#12141c] border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg select-none ${
+                    className={`p-3.5 sm:p-4 rounded-2xl bg-[#12141c] border transition-all flex flex-col justify-between gap-3 shadow-lg select-none ${
                       isDragging
                         ? 'opacity-40 scale-95 border-amber-500 shadow-amber-500/20'
                         : isDragOver
@@ -1723,22 +1723,23 @@ export default function AdminPage() {
                         : 'border-white/5 hover:border-amber-500/30'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 w-full sm:w-auto">
-                      {/* Asa Drag & Drop y Controles Subir/Bajar */}
-                      <div className="flex items-center gap-1 shrink-0">
+                    {/* Cabecera / Contenido principal de la tarjeta */}
+                    <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 w-full min-w-0">
+                      {/* Controles de Orden (Asa Drag & Drop + Flechas Subir/Bajar) */}
+                      <div className="flex flex-col items-center justify-center gap-1 shrink-0 bg-black/50 p-1 rounded-xl border border-white/5">
                         <div
-                          className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg text-zinc-500 hover:text-amber-400 hover:bg-zinc-800/80 transition"
+                          className="cursor-grab active:cursor-grabbing p-1 rounded-lg text-zinc-400 hover:text-amber-400 hover:bg-white/5 transition"
                           title="Arrastrar para reordenar"
                         >
-                          <GripVertical className="w-5 h-5" />
+                          <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
                         </div>
-                        <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-col gap-1">
                           <button
                             type="button"
                             disabled={index === 0 || guardandoOrdenCat}
                             onClick={() => moverCategoria(index, index - 1)}
-                            className="p-1 rounded bg-zinc-800/80 hover:bg-amber-500 hover:text-black text-zinc-400 disabled:opacity-20 disabled:pointer-events-none transition"
-                            title="Subir de posición"
+                            className="p-1 rounded bg-zinc-800 hover:bg-amber-500 hover:text-black text-zinc-300 disabled:opacity-20 disabled:pointer-events-none transition"
+                            title="Subir posición"
                           >
                             <ChevronUp className="w-3.5 h-3.5" />
                           </button>
@@ -1746,16 +1747,16 @@ export default function AdminPage() {
                             type="button"
                             disabled={index === categoriasOrdenadas.length - 1 || guardandoOrdenCat}
                             onClick={() => moverCategoria(index, index + 1)}
-                            className="p-1 rounded bg-zinc-800/80 hover:bg-amber-500 hover:text-black text-zinc-400 disabled:opacity-20 disabled:pointer-events-none transition"
-                            title="Bajar de posición"
+                            className="p-1 rounded bg-zinc-800 hover:bg-amber-500 hover:text-black text-zinc-300 disabled:opacity-20 disabled:pointer-events-none transition"
+                            title="Bajar posición"
                           >
                             <ChevronDown className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
 
-                      {/* Imagen de la Categoría */}
-                      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-black/60 border border-white/10 p-1 overflow-hidden shrink-0 flex items-center justify-center">
+                      {/* Foto de la Categoría con Badge de Orden */}
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/70 border border-white/10 p-1 overflow-hidden shrink-0 flex items-center justify-center shadow-inner">
                         {cat.imagen_url ? (
                           <Image
                             src={cat.imagen_url}
@@ -1765,75 +1766,90 @@ export default function AdminPage() {
                           />
                         ) : (
                           <div className="text-center p-1">
-                            <ImageIcon className="w-5 h-5 text-zinc-600 mx-auto mb-0.5" />
+                            <ImageIcon className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-600 mx-auto mb-0.5" />
                             <span className="text-[9px] text-zinc-500 font-bold block leading-none">Sin foto</span>
                           </div>
                         )}
+                        <span className="absolute top-1 left-1 text-[10px] font-mono font-black px-1.5 py-0.5 rounded-md bg-amber-500 text-black shadow-md leading-none">
+                          #{cat.orden}
+                        </span>
                       </div>
 
-                      {/* Info de la Categoría */}
+                      {/* Textos y Datos de la Sección */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs font-mono font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            #{cat.orden}
-                          </span>
-                          <h3 className="text-sm sm:text-base font-black text-white truncate">{cat.nombre}</h3>
+                          <h3 className="text-sm sm:text-base font-black text-white leading-tight break-words">
+                            {cat.nombre}
+                          </h3>
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                               cat.activo !== false
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-red-500/15 text-red-400 border border-red-500/30'
                             }`}
                           >
                             {cat.activo !== false ? 'Activa' : 'Oculta'}
                           </span>
                         </div>
-                        <p className="text-[11px] text-zinc-400 font-mono mt-0.5">#{cat.slug}</p>
-                        <span className="text-[11px] text-amber-400/90 font-medium block mt-0.5">
-                          {prodsCount} producto(s) asociado(s)
-                        </span>
+
+                        <p className="text-xs text-zinc-400 font-mono mt-1">
+                          #{cat.slug}
+                        </p>
+
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
+                            <span>📦</span>
+                            <span>{prodsCount} producto(s)</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Botones de acción de la categoría */}
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 border-white/10 pt-2.5 sm:pt-0 shrink-0">
-                      {/* Toggle Activo */}
+                    {/* Barra de Acciones Móvil y Desktop */}
+                    <div className="w-full pt-2.5 border-t border-white/5 flex items-center justify-between gap-2">
+                      {/* Botón Visibilidad */}
                       <button
                         type="button"
                         onClick={() => handleToggleActivoCategoria(cat)}
-                        className={`p-2 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                        className={`flex-1 sm:flex-initial px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                           cat.activo !== false
                             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
-                            : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                            : 'bg-zinc-800 text-zinc-400 hover:text-white border border-white/5'
                         }`}
                         title={cat.activo !== false ? 'Ocultar categoría de la carta' : 'Activar categoría en la carta'}
                       >
                         {cat.activo !== false ? (
-                          <Eye className="w-4 h-4" />
+                          <>
+                            <Eye className="w-3.5 h-3.5 shrink-0" />
+                            <span className="text-xs font-bold">Visible</span>
+                          </>
                         ) : (
-                          <EyeOff className="w-4 h-4" />
+                          <>
+                            <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                            <span className="text-xs font-bold">Oculta</span>
+                          </>
                         )}
                       </button>
 
-                      {/* Editar datos y foto */}
+                      {/* Botón Editar */}
                       <button
                         type="button"
                         onClick={() => setEditingCategoria({ ...cat, imagen_url: cat.imagen_url || '' })}
-                        className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black text-zinc-200 text-xs font-black transition flex items-center gap-1.5 shrink-0"
+                        className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black text-zinc-200 text-xs font-black transition flex items-center justify-center gap-1.5 border border-white/5"
                         title="Editar nombre, orden y foto"
                       >
-                        <Edit className="w-3.5 h-3.5" />
+                        <Edit className="w-3.5 h-3.5 shrink-0" />
                         <span>Editar</span>
                       </button>
 
-                      {/* Eliminar categoría */}
+                      {/* Botón Eliminar */}
                       <button
                         type="button"
                         onClick={() => handleDeleteCategoria(cat)}
-                        className="p-2 rounded-xl bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition"
+                        className="p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-800/80 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition border border-white/5 flex items-center justify-center shrink-0"
                         title="Eliminar categoría"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>

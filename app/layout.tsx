@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 import { PwaRegister } from '@/components/PwaRegister';
+import { PreventZoom } from '@/components/PreventZoom';
 import { MenuProvider } from '@/lib/store';
 
 export const viewport: Viewport = {
@@ -36,6 +37,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark h-full antialiased">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
         <link rel="icon" type="image/png" href="/images/logo-icon.png" />
         <link rel="apple-touch-icon" href="/images/logo-icon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -46,6 +48,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-[#0b0c0f] text-zinc-100">
+        <PreventZoom />
         <PwaRegister />
         <MenuProvider>
           {children}
