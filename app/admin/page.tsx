@@ -149,6 +149,7 @@ export default function AdminPage() {
   const [nuevaImagen, setNuevaImagen] = useState('');
   const [nuevaPantalla, setNuevaPantalla] = useState(1);
   const [nuevoDestacado, setNuevoDestacado] = useState(false);
+  const [nuevoMostrarImagenCarta, setNuevoMostrarImagenCarta] = useState<boolean>(true);
 
   React.useEffect(() => {
     if (categorias.length > 0 && !nuevaCatId) {
@@ -399,6 +400,14 @@ export default function AdminPage() {
     });
   };
 
+  const handleToggleFotoCarta = async (p: Producto) => {
+    const nuevoEstado = p.mostrar_imagen_carta === false ? true : false;
+    await updateProducto({
+      ...p,
+      mostrar_imagen_carta: nuevoEstado,
+    });
+  };
+
   const handleCrearProducto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevoNombre.trim()) return;
@@ -418,6 +427,7 @@ export default function AdminPage() {
       disponible: true,
       es_destacado: nuevoDestacado,
       mostrar_en_tv: true,
+      mostrar_imagen_carta: nuevoMostrarImagenCarta,
       pantalla_tv: nuevaPantalla,
       orden: productos.length + 1,
     };
@@ -429,6 +439,7 @@ export default function AdminPage() {
       setNuevaDesc('');
       setNuevaImagen('');
       setNuevoPrecioSecundario(undefined);
+      setNuevoMostrarImagenCarta(true);
       alert(`✅ Producto "${nuevo.nombre}" guardado con éxito en la base de datos.`);
     } catch (err: any) {
       alert('Error guardando producto en la base de datos: ' + err.message);
@@ -815,7 +826,7 @@ export default function AdminPage() {
                     Precio Opción Papas Fritas
                   </h3>
                   <p className="text-xs text-zinc-400">
-                    Ajuste dinámico para Sándwiches y Completos
+                    Ajuste dinámico para Sándwiches, Completos y Fajitas
                   </p>
                 </div>
               </div>
@@ -990,7 +1001,7 @@ export default function AdminPage() {
                   <h3 className="text-sm font-black text-white flex items-center gap-2">
                     <span>Precio Opción Papas Fritas</span>
                     <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      Sándwiches & Completos
+                      Sándwiches, Completos & Fajitas
                     </span>
                   </h3>
                   <p className="text-xs text-zinc-400 mt-0.5">
@@ -1098,6 +1109,11 @@ export default function AdminPage() {
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">
                         TV {prod.pantalla_tv === 0 ? 'Ambas' : prod.pantalla_tv}
                       </span>
+                      {prod.imagen_url && prod.mostrar_imagen_carta === false && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-white/5">
+                          Foto solo en TV
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1">{prod.descripcion}</p>
                   </div>
@@ -1125,6 +1141,23 @@ export default function AdminPage() {
                       title="Editar Producto e Imagen"
                     >
                       <Edit className="w-4 h-4" />
+                    </button>
+
+                    {/* Toggle Foto en Carta */}
+                    <button
+                      onClick={() => handleToggleFotoCarta(prod)}
+                      className={`p-2 rounded-xl text-xs font-bold transition ${
+                        prod.mostrar_imagen_carta !== false
+                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
+                          : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+                      }`}
+                      title={
+                        prod.mostrar_imagen_carta !== false
+                          ? 'Foto visible en la carta (clic para ocultar en carta)'
+                          : 'Foto oculta en la carta (solo visible en pantallas TV)'
+                      }
+                    >
+                      <ImageIcon className="w-4 h-4" />
                     </button>
 
                     {/* Toggle Stock */}
@@ -1297,6 +1330,30 @@ export default function AdminPage() {
                     }
                     placeholder="https://..."
                     className="w-full px-3 py-1.5 bg-black border border-white/10 rounded-xl text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Checkbox Mostrar Foto en Carta */}
+                <div className="mt-3 p-3 bg-black/60 rounded-xl border border-white/10 flex items-center justify-between gap-3">
+                  <div>
+                    <label htmlFor="editMostrarCartaCheck" className="text-xs font-bold text-white block cursor-pointer">
+                      Mostrar foto en la carta
+                    </label>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      Si lo desmarcas, la foto se mantiene para las pantallas TV pero no se muestra repetida en el menú de clientes.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="editMostrarCartaCheck"
+                    checked={editingProduct.mostrar_imagen_carta !== false}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        mostrar_imagen_carta: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 cursor-pointer shrink-0"
                   />
                 </div>
               </div>
@@ -1536,6 +1593,25 @@ export default function AdminPage() {
                     onChange={(e) => setNuevaImagen(e.target.value)}
                     placeholder="URL de la imagen (o súbela arriba)"
                     className="flex-1 px-3 py-2 bg-black border border-white/10 rounded-xl text-white text-xs font-mono focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Checkbox Mostrar Foto en Carta */}
+                <div className="mt-3 p-3 bg-black/60 rounded-xl border border-white/10 flex items-center justify-between gap-3">
+                  <div>
+                    <label htmlFor="nuevoMostrarCartaCheck" className="text-xs font-bold text-white block cursor-pointer">
+                      Mostrar foto en la carta
+                    </label>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      Si lo desmarcas, la foto se mantiene para pantallas TV pero no se muestra en el menú móvil/web.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="nuevoMostrarCartaCheck"
+                    checked={nuevoMostrarImagenCarta}
+                    onChange={(e) => setNuevoMostrarImagenCarta(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 cursor-pointer shrink-0"
                   />
                 </div>
               </div>

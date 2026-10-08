@@ -20,6 +20,7 @@ export interface Producto {
   disponible: boolean;
   es_destacado: boolean;
   mostrar_en_tv: boolean;
+  mostrar_imagen_carta?: boolean; // Controla si se muestra la foto en la carta web/móvil
   pantalla_tv: number; // 0: Ambas, 1: TV 1, 2: TV 2
   orden: number;
 }

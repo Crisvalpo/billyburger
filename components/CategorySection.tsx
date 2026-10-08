@@ -28,9 +28,10 @@ function ProductRow({
 
   const esSandwich = categoriaSlug === 'sandwiches';
   const esCompleto = categoriaSlug === 'completos';
-  const tieneOpcionPapas = esSandwich || esCompleto;
+  const esFajita = categoriaSlug === 'fajitas';
+  const tieneOpcionPapas = esSandwich || esCompleto || esFajita;
 
-  // En sándwiches la opción por defecto es con papas; en completos es sin papas
+  // En sándwiches la opción por defecto es con papas; en completos y fajitas es sin papas
   const [conPapas, setConPapas] = useState<boolean>(esSandwich);
 
   const formatoPrecio = (precio: number) => {
@@ -50,7 +51,7 @@ function ProductRow({
       ? prod.precio_secundario
       : Math.max(0, prod.precio - precioPapasCombo);
     precioConPapas = precioSinPapas + precioPapasCombo;
-  } else if (esCompleto) {
+  } else if (esCompleto || esFajita) {
     precioSinPapas = prod.precio;
     precioConPapas = prod.precio + precioPapasCombo;
   }
@@ -74,8 +75,8 @@ function ProductRow({
       } ${!prod.disponible ? 'opacity-50 grayscale' : ''}`}
     >
       <div className="flex items-start gap-3">
-        {/* Miniatura del producto (si tiene foto subida) */}
-        {prod.imagen_url && prod.imagen_url.trim() !== '' && (
+        {/* Miniatura del producto (si tiene foto subida Y está habilitado mostrarla en la carta) */}
+        {prod.imagen_url && prod.imagen_url.trim() !== '' && prod.mostrar_imagen_carta !== false && (
           <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-black/40 border border-amber-500/20 overflow-hidden shrink-0 shadow-md">
             <Image
               src={prod.imagen_url}
@@ -258,10 +259,10 @@ export function CategorySection({
         )}
 
         {/* Banner informativo de sección */}
-        {categoria.slug === 'sandwiches' && (
+        {(categoria.slug === 'sandwiches' || categoria.slug === 'completos' || categoria.slug === 'fajitas') && (
           <div className="my-3 text-center">
             <span className="inline-block px-4 py-1.5 rounded-full bg-black/75 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-lg">
-              🍟 Elige tus Sándwiches con o sin papas fritas
+              🍟 Elige tus {categoria.slug === 'sandwiches' ? 'Sándwiches' : categoria.slug === 'completos' ? 'Completos' : 'Fajitas'} con o sin papas fritas
             </span>
           </div>
         )}
@@ -290,7 +291,15 @@ export function CategorySection({
                 Carne o Pollo +$1.300 • Otros agregados +$1.000
               </p>
               <p className="text-xs font-bold text-white mt-1">
-                🍟 Agrégale Deliciosas Papas Fritas: <span className="text-amber-400 font-mono">+$1.500</span>
+                🍟 Agrégale Deliciosas Papas Fritas:{' '}
+                <span className="text-amber-400 font-mono">
+                  +
+                  {new Intl.NumberFormat('es-CL', {
+                    style: 'currency',
+                    currency: 'CLP',
+                    maximumFractionDigits: 0,
+                  }).format(precioPapasCombo)}
+                </span>
               </p>
             </div>
           </div>

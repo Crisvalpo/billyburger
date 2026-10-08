@@ -82,25 +82,28 @@ function TVMenuboardContent() {
       {/* 1. TV TOP HEADER BAR */}
       <header className="h-20 bg-gradient-to-r from-[#0e1017] via-[#141722] to-[#0e1017] border-b border-amber-500/20 px-8 flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full p-1.5 bg-gradient-to-tr from-amber-500 to-orange-500 shadow-xl shadow-orange-500/30 flex items-center justify-center">
+          <div className="relative w-14 h-14 rounded-full p-2 bg-gradient-to-tr from-amber-600 to-orange-600 shadow-xl shadow-amber-500/20 border border-amber-400/40 flex items-center justify-center shrink-0">
             <Image
-              src="/images/logo.png"
-              alt="BillyBurger"
-              width={50}
-              height={50}
-              className="w-full h-full object-contain filter invert"
+              src="/images/logo-icon.png"
+              alt="Billy Burger"
+              width={44}
+              height={44}
+              className="object-contain"
+              priority
             />
           </div>
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
-              BILLY<span className="text-amber-400">BURGER</span>
-              <span className="text-xs bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
-                PANTALLA {pantallaId}
-              </span>
-            </h1>
-            <p className="text-xs text-zinc-400 font-medium">
-              Sabor & Calidad Artesanal • Pide al WhatsApp: +56 9 3255 3527
-            </p>
+          <div className="flex items-center gap-3">
+            <Image
+              src="/images/logo-text.png"
+              alt="Billy BURGER"
+              width={160}
+              height={50}
+              className="h-10 w-auto object-contain filter drop-shadow-md"
+              priority
+            />
+            <span className="text-xs bg-amber-500/20 text-amber-300 font-extrabold px-2.5 py-1 rounded-full border border-amber-500/40 uppercase tracking-wider">
+              PANTALLA {pantallaId}
+            </span>
           </div>
         </div>
 
