@@ -194,26 +194,34 @@ export function useMenuData() {
 
   // Función para agregar producto
   const addProducto = async (nuevo: Producto) => {
-    const nuevos = [...productos, nuevo];
-    setProductos(nuevos);
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify(nuevos));
-      bc?.postMessage({ type: 'UPDATE_ALL' });
-    }
-
     try {
-      await fetch('/api/menu', {
+      const res = await fetch('/api/menu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'addProducto', data: nuevo }),
       });
-    } catch (e) {
-      console.warn('Error adding producto via /api/menu:', e);
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('productos').insert(nuevo);
+      if (res.ok) {
+        const json = await res.json();
+        const productoGuardado: Producto = json.data || nuevo;
+        setProductos((prev) => [...prev, productoGuardado]);
+        if (typeof window !== 'undefined') {
+          const items = [...productos, productoGuardado];
+          localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify(items));
+          bc?.postMessage({ type: 'UPDATE_ALL' });
+        }
+        return productoGuardado;
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Error en servidor al guardar');
+      }
+    } catch (e: any) {
+      console.error('Error adding producto via /api/menu:', e);
+      setProductos((prev) => [...prev, nuevo]);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify([...productos, nuevo]));
+        bc?.postMessage({ type: 'UPDATE_ALL' });
+      }
+      throw e;
     }
   };
 

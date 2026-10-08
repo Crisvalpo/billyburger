@@ -48,13 +48,19 @@ export default function AdminPage() {
 
   // Formulario nuevo producto
   const [nuevoNombre, setNuevoNombre] = useState('');
-  const [nuevaCatId, setNuevaCatId] = useState(categorias[0]?.id || 'cat-burgers');
+  const [nuevaCatId, setNuevaCatId] = useState('');
   const [nuevoPrecio, setNuevoPrecio] = useState(5000);
   const [nuevoPrecioSecundario, setNuevoPrecioSecundario] = useState<number | undefined>(undefined);
   const [nuevaDesc, setNuevaDesc] = useState('');
-  const [nuevaImagen, setNuevaImagen] = useState('/images/burger-png.png');
+  const [nuevaImagen, setNuevaImagen] = useState('');
   const [nuevaPantalla, setNuevaPantalla] = useState(1);
   const [nuevoDestacado, setNuevoDestacado] = useState(false);
+
+  React.useEffect(() => {
+    if (categorias.length > 0 && !nuevaCatId) {
+      setNuevaCatId(categorias[0].id);
+    }
+  }, [categorias, nuevaCatId]);
 
   const formatoPrecio = (precio: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -258,15 +264,18 @@ export default function AdminPage() {
     e.preventDefault();
     if (!nuevoNombre.trim()) return;
 
+    const catSeleccionada = categorias.find((c) => c.id === nuevaCatId) || categorias[0];
+    const catIdFinal = catSeleccionada ? catSeleccionada.id : nuevaCatId;
+
     const nuevo: Producto = {
-      id: 'prod-' + Date.now(),
-      categoria_id: nuevaCatId,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'prod-' + Date.now(),
+      categoria_id: catIdFinal,
       nombre: nuevoNombre.trim(),
       descripcion: nuevaDesc.trim(),
-      precio: nuevoPrecio,
-      precio_secundario: nuevoPrecioSecundario,
+      precio: Number(nuevoPrecio) || 0,
+      precio_secundario: nuevoPrecioSecundario ? Number(nuevoPrecioSecundario) : undefined,
       etiqueta_precio_secundario: nuevoPrecioSecundario ? 'Sin Papas' : undefined,
-      imagen_url: nuevaImagen,
+      imagen_url: nuevaImagen || '',
       disponible: true,
       es_destacado: nuevoDestacado,
       mostrar_en_tv: true,
@@ -274,11 +283,17 @@ export default function AdminPage() {
       orden: productos.length + 1,
     };
 
-    await addProducto(nuevo);
-    setShowAddModal(false);
-    setNuevoNombre('');
-    setNuevaDesc('');
-    setNuevoPrecioSecundario(undefined);
+    try {
+      await addProducto(nuevo);
+      setShowAddModal(false);
+      setNuevoNombre('');
+      setNuevaDesc('');
+      setNuevaImagen('');
+      setNuevoPrecioSecundario(undefined);
+      alert(`✅ Producto "${nuevo.nombre}" guardado con éxito en la base de datos.`);
+    } catch (err: any) {
+      alert('Error guardando producto en la base de datos: ' + err.message);
+    }
   };
 
   const productosFiltrados = productos.filter((p) => {

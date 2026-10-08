@@ -73,12 +73,36 @@ export async function POST(req: NextRequest) {
       }
 
       case 'addProducto': {
+        const prodData = { ...data };
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+        // Si el id no es un UUID válido de 36 caracteres, eliminarlo para que Postgres use gen_random_uuid()
+        if (!prodData.id || !uuidRegex.test(prodData.id)) {
+          delete prodData.id;
+        }
+
+        // Si categoria_id no es un UUID válido, asignar el primer ID de categoría válido
+        if (!prodData.categoria_id || !uuidRegex.test(prodData.categoria_id)) {
+          const { data: cat } = await supabaseAdmin
+            .from('categorias')
+            .select('id')
+            .order('orden')
+            .limit(1)
+            .single();
+          if (cat?.id) {
+            prodData.categoria_id = cat.id;
+          }
+        }
+
         const { data: inserted, error } = await supabaseAdmin
           .from('productos')
-          .insert(data)
+          .insert(prodData)
           .select();
-        if (error) throw error;
-        return NextResponse.json({ success: true, data: inserted });
+        if (error) {
+          console.error('Error insertando en productos:', error);
+          throw error;
+        }
+        return NextResponse.json({ success: true, data: inserted?.[0] || inserted });
       }
 
       case 'deleteProducto': {
