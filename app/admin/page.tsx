@@ -474,6 +474,13 @@ export default function AdminPage() {
                   </button>
                 )}
               </div>
+
+              {configTV[0]?.portada_url && (
+                <div className="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Guardado automáticamente en la nube (activo en la carta)</span>
+                </div>
+              )}
             </div>
           </div>
         ) : activeTab === 'secciones' ? (
