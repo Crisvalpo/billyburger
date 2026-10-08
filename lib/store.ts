@@ -282,21 +282,6 @@ export function useMenuData() {
     }
   };
 
-  // Función para resetear datos iniciales
-  const resetToDefaults = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEYS.PRODUCTOS);
-      localStorage.removeItem(STORAGE_KEYS.CATEGORIAS);
-      localStorage.removeItem(STORAGE_KEYS.EVENTOS);
-      localStorage.removeItem(STORAGE_KEYS.CONFIG_TV);
-      bc?.postMessage({ type: 'UPDATE_ALL' });
-    }
-    setProductos(PRODUCTOS_INICIALES);
-    setCategorias(CATEGORIAS_INICIALES);
-    setEventos(EVENTOS_INICIALES);
-    setConfigTV(CONFIG_TV_INICIAL);
-  };
-
   return {
     categorias,
     productos,
@@ -308,6 +293,5 @@ export function useMenuData() {
     updateConfigTV,
     addProducto,
     deleteProducto,
-    resetToDefaults,
   };
 }

@@ -16,7 +16,6 @@ import {
   ArrowLeft,
   Trash2,
   Edit,
-  RotateCcw,
   ImageIcon,
   X,
   Upload,
@@ -48,7 +47,6 @@ export default function AdminPage() {
     updateConfigTV,
     addProducto,
     deleteProducto,
-    resetToDefaults,
   } = useMenuData();
 
   const [activeTab, setActiveTab] = useState<'productos' | 'secciones' | 'portada' | 'horarios'>('productos');
@@ -521,7 +519,7 @@ export default function AdminPage() {
       {/* Main Admin Content */}
       <main className="max-w-5xl mx-auto px-4 mt-6">
         {/* Quick Stats & Shortcuts */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
           <div className="bg-[#12141c] p-4 rounded-2xl border border-white/5">
             <span className="text-xs text-zinc-400 uppercase font-bold">Total Productos</span>
             <p className="text-2xl font-black text-white mt-1">{productos.length}</p>
@@ -537,20 +535,6 @@ export default function AdminPage() {
             <p className="text-2xl font-black text-red-400 mt-1">
               {productos.filter((p) => !p.disponible).length}
             </p>
-          </div>
-          <div className="bg-[#12141c] p-4 rounded-2xl border border-white/5 flex flex-col justify-between">
-            <span className="text-xs text-zinc-400 uppercase font-bold">Restaurar</span>
-            <button
-              onClick={() => {
-                if (confirm('¿Restaurar menú a los valores iniciales de Canva?')) {
-                  resetToDefaults();
-                }
-              }}
-              className="text-xs text-zinc-400 hover:text-red-400 flex items-center gap-1 mt-1 transition font-bold"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset datos</span>
-            </button>
           </div>
         </div>
 
