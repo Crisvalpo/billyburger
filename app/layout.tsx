@@ -22,8 +22,8 @@ export const metadata: Metadata = {
     title: 'BillyBurger',
   },
   icons: {
-    icon: '/images/logo.png',
-    apple: '/images/logo.png',
+    icon: '/icon-512.png',
+    apple: '/icon-512.png',
   },
 };
 

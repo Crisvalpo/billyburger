@@ -30,7 +30,7 @@ export function OrderDrawer() {
     mensaje += `━━━━━━━━━━━━━━━━━━━━━\n`;
 
     items.forEach((item) => {
-      const opcion = item.sinPapas ? ' [Sin Papas]' : item.producto.precio_secundario ? ' [Con Papas]' : '';
+      const opcion = item.opcionNombre ? ` [${item.opcionNombre}]` : '';
       const subtotal = item.precioUnitario * item.cantidad;
       mensaje += `• *${item.cantidad}x* ${item.producto.nombre}${opcion} — ${formatoPrecio(subtotal)}\n`;
     });
@@ -113,14 +113,9 @@ export function OrderDrawer() {
                     </span>
                   </div>
 
-                  {item.sinPapas && (
-                    <span className="text-[10px] font-bold text-amber-300/80 block">
-                      Opción: Sin Papas Fritas
-                    </span>
-                  )}
-                  {item.producto.precio_secundario && !item.sinPapas && (
-                    <span className="text-[10px] font-bold text-emerald-400/80 block">
-                      Opción: Con Papas Fritas
+                  {item.opcionNombre && (
+                    <span className="text-[10px] font-bold text-amber-300/90 block mt-0.5">
+                      Opción: {item.opcionNombre}
                     </span>
                   )}
 
@@ -128,7 +123,7 @@ export function OrderDrawer() {
                   <div className="mt-2 flex items-center justify-between">
                     <div className="inline-flex items-center gap-2 bg-black/60 rounded-lg p-1 border border-white/10">
                       <button
-                        onClick={() => removeItem(item.producto.id, item.sinPapas)}
+                        onClick={() => removeItem(item.producto.id, item.opcionNombre)}
                         className="w-6 h-6 rounded bg-zinc-800 hover:bg-amber-600 flex items-center justify-center text-zinc-300 hover:text-white transition"
                         title="Disminuir"
                       >
@@ -138,7 +133,7 @@ export function OrderDrawer() {
                         {item.cantidad}
                       </span>
                       <button
-                        onClick={() => updateQuantity(item.producto.id, item.cantidad + 1, item.sinPapas)}
+                        onClick={() => updateQuantity(item.producto.id, item.cantidad + 1, item.opcionNombre)}
                         className="w-6 h-6 rounded bg-zinc-800 hover:bg-amber-600 flex items-center justify-center text-zinc-300 hover:text-white transition"
                         title="Aumentar"
                       >
@@ -147,7 +142,7 @@ export function OrderDrawer() {
                     </div>
 
                     <button
-                      onClick={() => updateQuantity(item.producto.id, 0, item.sinPapas)}
+                      onClick={() => updateQuantity(item.producto.id, 0, item.opcionNombre)}
                       className="text-zinc-500 hover:text-red-400 p-1 transition"
                       title="Quitar plato"
                     >

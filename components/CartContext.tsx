@@ -4,19 +4,19 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Producto } from '@/lib/types';
 
 export interface CartItem {
-  id: string; // unique item key: `${producto.id}-${sinPapas ? 'sin' : 'con'}`
+  id: string; // unique item key: `${producto.id}-${opcionNombre || 'default'}`
   producto: Producto;
   cantidad: number;
-  sinPapas?: boolean;
+  opcionNombre?: string;
   precioUnitario: number;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (producto: Producto, sinPapas?: boolean) => void;
-  removeItem: (productoId: string, sinPapas?: boolean) => void;
-  updateQuantity: (productoId: string, cantidad: number, sinPapas?: boolean) => void;
-  getItemQuantity: (productoId: string, sinPapas?: boolean) => number;
+  addItem: (producto: Producto, opcionNombre?: string, precioUnitarioOverride?: number) => void;
+  removeItem: (productoId: string, opcionNombre?: string) => void;
+  updateQuantity: (productoId: string, cantidad: number, opcionNombre?: string) => void;
+  getItemQuantity: (productoId: string, opcionNombre?: string) => number;
   clearCart: () => void;
   totalItems: number;
   totalPrecio: number;
@@ -26,7 +26,7 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = 'billy_cart_v1';
+const CART_STORAGE_KEY = 'billy_cart_v2';
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -57,15 +57,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items, isLoaded]);
 
-  const getItemKey = (productoId: string, sinPapas: boolean = false) => {
-    return `${productoId}-${sinPapas ? 'sin-papas' : 'con-papas'}`;
+  const getItemKey = (productoId: string, opcionNombre: string = '') => {
+    return `${productoId}-${opcionNombre || 'default'}`;
   };
 
-  const addItem = (producto: Producto, sinPapas: boolean = false) => {
-    const key = getItemKey(producto.id, sinPapas);
-    const precioUnitario = sinPapas && producto.precio_secundario
-      ? producto.precio_secundario
-      : producto.precio;
+  const addItem = (
+    producto: Producto,
+    opcionNombre: string = '',
+    precioUnitarioOverride?: number
+  ) => {
+    const key = getItemKey(producto.id, opcionNombre);
+    const precioFinal =
+      precioUnitarioOverride !== undefined
+        ? precioUnitarioOverride
+        : producto.precio;
 
     setItems((prev) => {
       const existing = prev.find((item) => item.id === key);
@@ -80,15 +85,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           id: key,
           producto,
           cantidad: 1,
-          sinPapas,
-          precioUnitario,
+          opcionNombre,
+          precioUnitario: precioFinal,
         },
       ];
     });
   };
 
-  const removeItem = (productoId: string, sinPapas: boolean = false) => {
-    const key = getItemKey(productoId, sinPapas);
+  const removeItem = (productoId: string, opcionNombre: string = '') => {
+    const key = getItemKey(productoId, opcionNombre);
     setItems((prev) => {
       const existing = prev.find((item) => item.id === key);
       if (!existing) return prev;
@@ -101,8 +106,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const updateQuantity = (productoId: string, cantidad: number, sinPapas: boolean = false) => {
-    const key = getItemKey(productoId, sinPapas);
+  const updateQuantity = (
+    productoId: string,
+    cantidad: number,
+    opcionNombre: string = ''
+  ) => {
+    const key = getItemKey(productoId, opcionNombre);
     if (cantidad <= 0) {
       setItems((prev) => prev.filter((item) => item.id !== key));
     } else {
@@ -112,8 +121,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const getItemQuantity = (productoId: string, sinPapas: boolean = false): number => {
-    const key = getItemKey(productoId, sinPapas);
+  const getItemQuantity = (productoId: string, opcionNombre: string = ''): number => {
+    const key = getItemKey(productoId, opcionNombre);
     const item = items.find((it) => it.id === key);
     return item ? item.cantidad : 0;
   };

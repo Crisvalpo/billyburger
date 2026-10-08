@@ -11,9 +11,10 @@ interface CategorySectionProps {
   productos: Producto[];
 }
 
-function ProductRow({ prod }: { prod: Producto }) {
+function ProductRow({ prod, categoriaSlug }: { prod: Producto; categoriaSlug?: string }) {
   const { addItem, removeItem, getItemQuantity } = useCart();
   const [sinPapas, setSinPapas] = useState(false);
+  const [conPapas, setConPapas] = useState(false);
 
   const formatoPrecio = (precio: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -23,11 +24,31 @@ function ProductRow({ prod }: { prod: Producto }) {
     }).format(precio);
   };
 
-  const precioActual = sinPapas && prod.precio_secundario
-    ? prod.precio_secundario
-    : prod.precio;
+  const esCompleto = categoriaSlug === 'completos';
+  const precioPapasCompletos = 1500;
 
-  const cantidad = getItemQuantity(prod.id, sinPapas);
+  let precioActual = prod.precio;
+  let opcionNombre = '';
+
+  if (esCompleto) {
+    if (conPapas) {
+      precioActual = prod.precio + precioPapasCompletos;
+      opcionNombre = 'Con Papas Fritas (+ $1.500)';
+    } else {
+      precioActual = prod.precio;
+      opcionNombre = '';
+    }
+  } else if (prod.precio_secundario) {
+    if (sinPapas) {
+      precioActual = prod.precio_secundario;
+      opcionNombre = prod.etiqueta_precio_secundario || 'Sin Papas';
+    } else {
+      precioActual = prod.precio;
+      opcionNombre = 'Con Papas';
+    }
+  }
+
+  const cantidad = getItemQuantity(prod.id, opcionNombre);
 
   return (
     <div
@@ -71,7 +92,7 @@ function ProductRow({ prod }: { prod: Producto }) {
             </div>
 
             <div className="text-right shrink-0">
-              <span className="text-base sm:text-xl font-black text-amber-400 font-mono tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+              <span className="text-base sm:xl font-black text-amber-400 font-mono tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
                 {formatoPrecio(precioActual)}
               </span>
             </div>
@@ -84,9 +105,41 @@ function ProductRow({ prod }: { prod: Producto }) {
             </p>
           )}
 
-          {/* Selector de Papas si el producto tiene precio secundario */}
-          {prod.precio_secundario && (
-            <div className="mt-2.5 flex items-center gap-2">
+          {/* Selector de Papas para la sección de COMPLETOS */}
+          {esCompleto && (
+            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-bold text-zinc-400">Opción:</span>
+              <div className="inline-flex rounded-lg bg-zinc-900/90 p-0.5 border border-white/10 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setConPapas(false)}
+                  className={`px-2.5 py-1 rounded-md font-bold transition text-[11px] ${
+                    !conPapas
+                      ? 'bg-amber-500 text-black shadow'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Solo Completo ({formatoPrecio(prod.precio)})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConPapas(true)}
+                  className={`px-2.5 py-1 rounded-md font-bold transition text-[11px] flex items-center gap-1 ${
+                    conPapas
+                      ? 'bg-amber-500 text-black shadow'
+                      : 'text-amber-400/90 hover:text-amber-300'
+                  }`}
+                >
+                  <span>🍟 + Papas Fritas</span>
+                  <span className="opacity-90">({formatoPrecio(prod.precio + precioPapasCompletos)})</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Selector de Papas si el producto tiene precio secundario (Sándwiches) */}
+          {!esCompleto && prod.precio_secundario && (
+            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-bold text-zinc-400">Opción:</span>
               <div className="inline-flex rounded-lg bg-zinc-900/90 p-0.5 border border-white/10 text-xs">
                 <button
@@ -133,7 +186,7 @@ function ProductRow({ prod }: { prod: Producto }) {
             {cantidad === 0 ? (
               <button
                 type="button"
-                onClick={() => addItem(prod, sinPapas)}
+                onClick={() => addItem(prod, opcionNombre, precioActual)}
                 className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md transition hover:scale-105 active:scale-95"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
@@ -143,7 +196,7 @@ function ProductRow({ prod }: { prod: Producto }) {
               <div className="inline-flex items-center gap-2 bg-zinc-900 border border-amber-500/40 rounded-xl p-1 shadow-md">
                 <button
                   type="button"
-                  onClick={() => removeItem(prod.id, sinPapas)}
+                  onClick={() => removeItem(prod.id, opcionNombre)}
                   className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:scale-95 flex items-center justify-center text-white transition"
                   title="Disminuir o quitar"
                 >
@@ -154,7 +207,7 @@ function ProductRow({ prod }: { prod: Producto }) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => addItem(prod, sinPapas)}
+                  onClick={() => addItem(prod, opcionNombre, precioActual)}
                   className="w-7 h-7 rounded-lg bg-amber-500 hover:bg-amber-400 active:scale-95 flex items-center justify-center text-black font-bold transition"
                   title="Aumentar"
                 >
@@ -219,12 +272,12 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
         {/* 3. MENU ITEMS LIST */}
         <div className="space-y-3 mt-3">
           {productos.map((prod) => (
-            <ProductRow key={prod.id} prod={prod} />
+            <ProductRow key={prod.id} prod={prod} categoriaSlug={categoria.slug} />
           ))}
         </div>
 
-        {/* 4. ADICIONALES (EN SECCIONES CORRESPONDIENTES) */}
-        {(categoria.slug === 'fajitas' || categoria.slug === 'completos' || categoria.slug === 'papas-fritas') && (
+        {/* 4. ADICIONALES (SOLO SI CORRESPONDE, EJ. FAJITAS - REMOVIDO DE COMPLETOS Y PAPAS FRITAS) */}
+        {categoria.slug === 'fajitas' && (
           <div className="mt-4 p-3.5 rounded-2xl bg-black/85 backdrop-blur-sm border border-amber-500/20 shadow-xl flex items-center justify-between gap-4">
             <div>
               <h4 className="text-xs font-black text-amber-300 uppercase tracking-wider">
@@ -243,3 +296,4 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
     </section>
   );
 }
+

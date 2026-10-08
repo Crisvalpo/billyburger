@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useMenuData } from '@/lib/store';
 import { Producto } from '@/lib/types';
+import { AdminAuthLock } from '@/components/AdminAuthLock';
 import {
   Plus,
   Tv,
@@ -19,9 +20,23 @@ import {
   X,
   Upload,
   Loader2,
+  Lock,
 } from 'lucide-react';
 
 export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [authChecking, setAuthChecking] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = sessionStorage.getItem('billy_admin_auth');
+      if (token) {
+        setIsAuthenticated(true);
+      }
+    }
+    setAuthChecking(false);
+  }, []);
+
   const {
     categorias,
     productos,
@@ -301,6 +316,18 @@ export default function AdminPage() {
     return p.categoria_id === categoriaFiltro;
   });
 
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-[#090a0d] flex items-center justify-center text-amber-400">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AdminAuthLock onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#090a0d] text-zinc-100 font-sans pb-24">
       {/* Top Admin Header */}
@@ -347,6 +374,19 @@ export default function AdminPage() {
             >
               <Plus className="w-4 h-4" />
               <span>Nuevo</span>
+            </button>
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  sessionStorage.removeItem('billy_admin_auth');
+                }
+                setIsAuthenticated(false);
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 text-xs font-bold flex items-center gap-1 transition border border-white/5"
+              title="Cerrar sesión / Bloquear panel"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Bloquear</span>
             </button>
           </div>
         </div>
