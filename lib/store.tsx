@@ -410,6 +410,87 @@ function useMenuDataInternal() {
     }
   };
 
+  const reorderCategorias = async (nuevasCategorias: Categoria[]) => {
+    const categoriasConOrden = nuevasCategorias.map((c, index) => ({
+      ...c,
+      orden: index + 1,
+    }));
+    setCategorias(categoriasConOrden);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.CATEGORIAS, JSON.stringify(categoriasConOrden));
+      bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    const payload = categoriasConOrden.map((c) => ({ id: c.id, orden: c.orden }));
+    try {
+      await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reorderCategorias',
+          data: payload,
+        }),
+      });
+    } catch (e) {
+      console.warn('Error reordering categorias via /api/menu:', e);
+    }
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await Promise.all(
+        payload.map((item) =>
+          client.from('categorias').update({ orden: item.orden }).eq('id', item.id)
+        )
+      );
+    }
+  };
+
+  const reorderProductos = async (productosReordenados: Producto[]) => {
+    const prodsActualizadosMap = new Map<string, number>();
+    productosReordenados.forEach((p, index) => {
+      prodsActualizadosMap.set(p.id, index + 1);
+    });
+
+    const nuevosProductos = productos.map((p) => {
+      if (prodsActualizadosMap.has(p.id)) {
+        return { ...p, orden: prodsActualizadosMap.get(p.id)! };
+      }
+      return p;
+    });
+
+    setProductos(nuevosProductos);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTOS, JSON.stringify(nuevosProductos));
+      bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    const payload = Array.from(prodsActualizadosMap.entries()).map(([id, orden]) => ({ id, orden }));
+
+    try {
+      await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reorderProductos',
+          data: payload,
+        }),
+      });
+    } catch (e) {
+      console.warn('Error reordering productos via /api/menu:', e);
+    }
+
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
+      await Promise.all(
+        payload.map((item) =>
+          client.from('productos').update({ orden: item.orden }).eq('id', item.id)
+        )
+      );
+    }
+  };
+
   return {
     categorias,
     productos,
@@ -419,11 +500,13 @@ function useMenuDataInternal() {
     updateCategoria,
     addCategoria,
     deleteCategoria,
+    reorderCategorias,
     updateProducto,
     updateConfigTV,
     updateAllConfigTV,
     addProducto,
     deleteProducto,
+    reorderProductos,
   };
 }
 

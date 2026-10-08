@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useMenuData } from '@/lib/store';
@@ -24,6 +24,10 @@ import {
   Clock,
   Eye,
   EyeOff,
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -48,15 +52,39 @@ export default function AdminPage() {
     updateCategoria,
     addCategoria,
     deleteCategoria,
+    reorderCategorias,
     updateProducto,
     updateConfigTV,
     updateAllConfigTV,
     addProducto,
     deleteProducto,
+    reorderProductos,
   } = useMenuData();
 
   const [activeTab, setActiveTab] = useState<'productos' | 'secciones' | 'portada' | 'horarios' | 'guincha'>('productos');
-  const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
+  // Categoría por defecto: Burgers + Papas
+  const [categoriaFiltro, setCategoriaFiltro] = useState<string>('cat-burgers');
+
+  // Sincronizar y seleccionar predeterminadamente Burgers + Papas (o la primera activa)
+  useEffect(() => {
+    if (categorias.length > 0) {
+      setCategoriaFiltro((prev) => {
+        if (prev && prev !== 'todas' && categorias.some((c) => c.id === prev)) {
+          return prev;
+        }
+        const catBurgers = categorias.find(
+          (c) =>
+            c.id === 'cat-burgers' ||
+            c.slug === 'burgers' ||
+            c.nombre.toLowerCase().includes('burger')
+        );
+        if (catBurgers) return catBurgers.id;
+        const sorted = [...categorias].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+        return sorted[0].id;
+      });
+    }
+  }, [categorias]);
+
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [editingCategoria, setEditingCategoria] = useState<any | null>(null);
@@ -717,10 +745,135 @@ export default function AdminPage() {
     }
   };
 
-  const productosFiltrados = productos.filter((p) => {
-    if (categoriaFiltro === 'todas') return true;
-    return p.categoria_id === categoriaFiltro;
-  });
+  // Categorías ordenadas ascendentemente por su número de orden
+  const categoriasOrdenadas = useMemo(() => {
+    return [...categorias].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  }, [categorias]);
+
+  // Productos filtrados y ordenados por su orden dentro de la categoría
+  const productosFiltrados = useMemo(() => {
+    const list = productos.filter((p) => {
+      if (categoriaFiltro === 'todas') return true;
+      return p.categoria_id === categoriaFiltro;
+    });
+    return list.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  }, [productos, categoriaFiltro]);
+
+  // --- DRAG & DROP DE CATEGORÍAS (SECCIONES) ---
+  const [draggedCatIndex, setDraggedCatIndex] = useState<number | null>(null);
+  const [dragOverCatIndex, setDragOverCatIndex] = useState<number | null>(null);
+  const [guardandoOrdenCat, setGuardandoOrdenCat] = useState<boolean>(false);
+
+  const moverCategoria = async (origenIdx: number, destinoIdx: number) => {
+    if (
+      origenIdx === destinoIdx ||
+      origenIdx < 0 ||
+      destinoIdx < 0 ||
+      origenIdx >= categoriasOrdenadas.length ||
+      destinoIdx >= categoriasOrdenadas.length
+    ) {
+      return;
+    }
+    const nuevoOrden = [...categoriasOrdenadas];
+    const [movida] = nuevoOrden.splice(origenIdx, 1);
+    nuevoOrden.splice(destinoIdx, 0, movida);
+    setGuardandoOrdenCat(true);
+    try {
+      await reorderCategorias(nuevoOrden);
+    } catch (e) {
+      console.error('Error reordenando categorías:', e);
+    } finally {
+      setGuardandoOrdenCat(false);
+    }
+  };
+
+  const handleDragStartCat = (e: React.DragEvent, index: number) => {
+    setDraggedCatIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOverCat = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverCatIndex !== index) {
+      setDragOverCatIndex(index);
+    }
+  };
+
+  const handleDragLeaveCat = () => {
+    setDragOverCatIndex(null);
+  };
+
+  const handleDropCat = async (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedCatIndex !== null && draggedCatIndex !== index) {
+      await moverCategoria(draggedCatIndex, index);
+    }
+    setDraggedCatIndex(null);
+    setDragOverCatIndex(null);
+  };
+
+  const handleDragEndCat = () => {
+    setDraggedCatIndex(null);
+    setDragOverCatIndex(null);
+  };
+
+  // --- DRAG & DROP DE PRODUCTOS ---
+  const [draggedProdIndex, setDraggedProdIndex] = useState<number | null>(null);
+  const [dragOverProdIndex, setDragOverProdIndex] = useState<number | null>(null);
+  const [guardandoOrdenProd, setGuardandoOrdenProd] = useState<boolean>(false);
+
+  const moverProducto = async (origenIdx: number, destinoIdx: number) => {
+    if (
+      origenIdx === destinoIdx ||
+      origenIdx < 0 ||
+      destinoIdx < 0 ||
+      origenIdx >= productosFiltrados.length ||
+      destinoIdx >= productosFiltrados.length
+    ) {
+      return;
+    }
+    const nuevoOrden = [...productosFiltrados];
+    const [movido] = nuevoOrden.splice(origenIdx, 1);
+    nuevoOrden.splice(destinoIdx, 0, movido);
+    setGuardandoOrdenProd(true);
+    try {
+      await reorderProductos(nuevoOrden);
+    } catch (e) {
+      console.error('Error reordenando productos:', e);
+    } finally {
+      setGuardandoOrdenProd(false);
+    }
+  };
+
+  const handleDragStartProd = (e: React.DragEvent, index: number) => {
+    setDraggedProdIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOverProd = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverProdIndex !== index) {
+      setDragOverProdIndex(index);
+    }
+  };
+
+  const handleDropProd = async (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedProdIndex !== null && draggedProdIndex !== index) {
+      await moverProducto(draggedProdIndex, index);
+    }
+    setDraggedProdIndex(null);
+    setDragOverProdIndex(null);
+  };
+
+  const handleDragEndProd = () => {
+    setDraggedProdIndex(null);
+    setDragOverProdIndex(null);
+  };
 
   if (authChecking) {
     return (
@@ -1524,9 +1677,15 @@ export default function AdminPage() {
               <div>
                 <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
                   <span>Secciones y Categorías ({categorias.length})</span>
+                  {guardandoOrdenCat && (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/30 animate-pulse">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Guardando orden...
+                    </span>
+                  )}
                 </h3>
                 <p className="text-xs text-zinc-400 mt-0.5">
-                  Organiza la carta, añade nuevas secciones (Postres, Promociones, etc.) o sube fotos de cabecera.
+                  Organiza la carta o <strong className="text-amber-300">arrastra y suelta</strong> las tarjetas (o usa las flechas 🔼🔽) para cambiar su orden de aparición.
                 </p>
               </div>
               <button
@@ -1540,19 +1699,63 @@ export default function AdminPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
-              {categorias.map((cat) => {
+              {categoriasOrdenadas.map((cat, index) => {
                 const prodsCount = productos.filter((p) => p.categoria_id === cat.id).length;
+                const isDragging = draggedCatIndex === index;
+                const isDragOver = dragOverCatIndex === index;
+
                 return (
                   <div
                     key={cat.id}
-                    className={`p-4 sm:p-5 rounded-2xl bg-[#12141c] border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 shadow-lg ${
-                      cat.activo === false
+                    draggable
+                    onDragStart={(e) => handleDragStartCat(e, index)}
+                    onDragOver={(e) => handleDragOverCat(e, index)}
+                    onDragLeave={handleDragLeaveCat}
+                    onDrop={(e) => handleDropCat(e, index)}
+                    onDragEnd={handleDragEndCat}
+                    className={`p-3.5 sm:p-4 rounded-2xl bg-[#12141c] border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg select-none ${
+                      isDragging
+                        ? 'opacity-40 scale-95 border-amber-500 shadow-amber-500/20'
+                        : isDragOver
+                        ? 'ring-2 ring-amber-400 bg-amber-500/10 border-amber-400'
+                        : cat.activo === false
                         ? 'border-red-900/40 opacity-70'
                         : 'border-white/5 hover:border-amber-500/30'
                     }`}
                   >
-                    <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
-                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/60 border border-white/10 p-1 overflow-hidden shrink-0 flex items-center justify-center">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 w-full sm:w-auto">
+                      {/* Asa Drag & Drop y Controles Subir/Bajar */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <div
+                          className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg text-zinc-500 hover:text-amber-400 hover:bg-zinc-800/80 transition"
+                          title="Arrastrar para reordenar"
+                        >
+                          <GripVertical className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            type="button"
+                            disabled={index === 0 || guardandoOrdenCat}
+                            onClick={() => moverCategoria(index, index - 1)}
+                            className="p-1 rounded bg-zinc-800/80 hover:bg-amber-500 hover:text-black text-zinc-400 disabled:opacity-20 disabled:pointer-events-none transition"
+                            title="Subir de posición"
+                          >
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={index === categoriasOrdenadas.length - 1 || guardandoOrdenCat}
+                            onClick={() => moverCategoria(index, index + 1)}
+                            className="p-1 rounded bg-zinc-800/80 hover:bg-amber-500 hover:text-black text-zinc-400 disabled:opacity-20 disabled:pointer-events-none transition"
+                            title="Bajar de posición"
+                          >
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Imagen de la Categoría */}
+                      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-black/60 border border-white/10 p-1 overflow-hidden shrink-0 flex items-center justify-center">
                         {cat.imagen_url ? (
                           <Image
                             src={cat.imagen_url}
@@ -1562,14 +1765,19 @@ export default function AdminPage() {
                           />
                         ) : (
                           <div className="text-center p-1">
-                            <ImageIcon className="w-6 h-6 text-zinc-600 mx-auto mb-1" />
-                            <span className="text-[10px] text-zinc-500 font-bold block">Sin foto</span>
+                            <ImageIcon className="w-5 h-5 text-zinc-600 mx-auto mb-0.5" />
+                            <span className="text-[9px] text-zinc-500 font-bold block leading-none">Sin foto</span>
                           </div>
                         )}
                       </div>
+
+                      {/* Info de la Categoría */}
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-base font-black text-white truncate">{cat.nombre}</h3>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-mono font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            #{cat.orden}
+                          </span>
+                          <h3 className="text-sm sm:text-base font-black text-white truncate">{cat.nombre}</h3>
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                               cat.activo !== false
@@ -1580,15 +1788,15 @@ export default function AdminPage() {
                             {cat.activo !== false ? 'Activa' : 'Oculta'}
                           </span>
                         </div>
-                        <p className="text-xs text-zinc-400 font-mono mt-0.5">#{cat.slug} • Orden: {cat.orden}</p>
-                        <span className="text-[11px] text-amber-400/90 font-medium block mt-1">
+                        <p className="text-[11px] text-zinc-400 font-mono mt-0.5">#{cat.slug}</p>
+                        <span className="text-[11px] text-amber-400/90 font-medium block mt-0.5">
                           {prodsCount} producto(s) asociado(s)
                         </span>
                       </div>
                     </div>
 
                     {/* Botones de acción de la categoría */}
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 border-white/10 pt-2.5 sm:pt-0">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 border-white/10 pt-2.5 sm:pt-0 shrink-0">
                       {/* Toggle Activo */}
                       <button
                         type="button"
@@ -1705,186 +1913,273 @@ export default function AdminPage() {
             </div>
 
             {/* Filter Bar */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
-          <button
-            onClick={() => setCategoriaFiltro('todas')}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
-              categoriaFiltro === 'todas'
-                ? 'bg-amber-500 text-black font-extrabold'
-                : 'bg-zinc-800 text-zinc-300 hover:text-white'
-            }`}
-          >
-            Todas ({productos.length})
-          </button>
-          {categorias.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setCategoriaFiltro(c.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
-                categoriaFiltro === c.id
-                  ? 'bg-amber-500 text-black font-extrabold'
-                  : 'bg-zinc-800 text-zinc-300 hover:text-white'
-              }`}
-            >
-              {c.nombre} ({productos.filter((p) => p.categoria_id === c.id).length})
-            </button>
-          ))}
-        </div>
-
-        {/* Product Table / Cards */}
-        <div className="space-y-3">
-          {productosFiltrados.map((prod) => {
-            return (
-              <div
-                key={prod.id}
-                className={`p-4 rounded-2xl bg-[#12141c] border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
-                  !prod.disponible
-                    ? 'border-red-900/40 opacity-60'
-                    : prod.es_destacado
-                    ? 'border-amber-500/30'
-                    : 'border-white/5'
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-3 scrollbar-none">
+              <button
+                onClick={() => setCategoriaFiltro('todas')}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+                  categoriaFiltro === 'todas'
+                    ? 'bg-amber-500 text-black font-extrabold shadow-md shadow-amber-500/20'
+                    : 'bg-zinc-800 text-zinc-300 hover:text-white'
                 }`}
               >
-                {/* Product Thumbnail & Info */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="relative w-14 h-14 rounded-xl bg-zinc-900 overflow-hidden shrink-0 border border-white/10">
-                    {prod.imagen_url ? (
-                      <Image
-                        src={prod.imagen_url}
-                        alt={prod.nombre}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                        <ImageIcon className="w-6 h-6" />
-                      </div>
-                    )}
-                  </div>
+                Todas ({productos.length})
+              </button>
+              {categoriasOrdenadas.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setCategoriaFiltro(c.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+                    categoriaFiltro === c.id
+                      ? 'bg-amber-500 text-black font-extrabold shadow-md shadow-amber-500/20'
+                      : 'bg-zinc-800 text-zinc-300 hover:text-white'
+                  }`}
+                >
+                  {c.nombre} ({productos.filter((p) => p.categoria_id === c.id).length})
+                </button>
+              ))}
+            </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-white text-base truncate">{prod.nombre}</h3>
-                      {prod.es_destacado && (
-                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                          Destacado TV
-                        </span>
-                      )}
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">
-                        TV {prod.pantalla_tv === 0 ? 'Ambas' : prod.pantalla_tv}
-                      </span>
-                      {prod.imagen_url && prod.mostrar_imagen_carta === false && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-white/5">
-                          Foto solo en TV
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1">{prod.descripcion}</p>
-                  </div>
-                </div>
-
-                {/* Price Display */}
-                <div className="shrink-0 flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                  <div className="text-right">
-                    <span className="text-lg font-black font-mono text-amber-400 block">
-                      {formatoPrecio(prod.precio)}
+            {/* Banner Informativo de Ordenamiento por Categoría */}
+            <div className="mb-3.5 p-3 rounded-xl bg-[#12141c] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+              {categoriaFiltro !== 'todas' ? (
+                <>
+                  <div className="flex items-center gap-2 text-zinc-300">
+                    <span className="text-amber-400 font-bold flex items-center gap-1">
+                      <ArrowUpDown className="w-3.5 h-3.5" />
+                      Organizar Productos:
                     </span>
-                    {prod.precio_secundario && (
-                      <span className="text-[11px] font-bold text-zinc-400 block">
-                        Sin papas: {formatoPrecio(prod.precio_secundario)}
-                      </span>
-                    )}
+                    <span>
+                      Arrastra y suelta los productos de esta categoría o usa las flechas 🔼🔽 para definir el orden arriba y abajo.
+                    </span>
                   </div>
-
-                  {/* Action Toggles & Edit Button */}
-                  <div className="flex items-center gap-1.5 border-l border-white/10 pl-3">
-                    {/* Botón Editar Completo (Ajustar Imagen, Precio, etc.) */}
-                    <button
-                      onClick={() => handleStartEdit(prod)}
-                      className="p-2 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black text-zinc-300 transition"
-                      title="Editar Producto e Imagen"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-
-                    {/* Toggle Foto en Carta */}
-                    <button
-                      onClick={() => handleToggleFotoCarta(prod)}
-                      className={`p-2 rounded-xl text-xs font-bold transition ${
-                        prod.mostrar_imagen_carta !== false
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
-                          : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
-                      }`}
-                      title={
-                        prod.mostrar_imagen_carta !== false
-                          ? 'Foto visible en la carta (clic para ocultar en carta)'
-                          : 'Foto oculta en la carta (solo visible en pantallas TV)'
-                      }
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                    </button>
-
-                    {/* Toggle Stock */}
-                    <button
-                      onClick={() => handleToggleDisponible(prod)}
-                      className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition ${
-                        prod.disponible
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
-                          : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
-                      }`}
-                      title={prod.disponible ? 'Disponible (clic para agotar)' : 'Agotado'}
-                    >
-                      {prod.disponible ? (
-                        <CheckCircle2 className="w-4 h-4" />
-                      ) : (
-                        <XCircle className="w-4 h-4" />
-                      )}
-                    </button>
-
-                    {/* Toggle TV */}
-                    <button
-                      onClick={() => handleToggleTV(prod)}
-                      className={`p-2 rounded-xl text-xs font-bold transition ${
-                        prod.mostrar_en_tv
-                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                          : 'bg-zinc-800 text-zinc-500'
-                      }`}
-                      title={prod.mostrar_en_tv ? 'Visible en TV' : 'Oculto en TV'}
-                    >
-                      <Tv className="w-4 h-4" />
-                    </button>
-
-                    {/* Toggle Destacado */}
-                    <button
-                      onClick={() => handleToggleDestacado(prod)}
-                      className={`p-2 rounded-xl text-xs font-bold transition ${
-                        prod.es_destacado
-                          ? 'bg-amber-500 text-black shadow-md'
-                          : 'bg-zinc-800 text-zinc-400 hover:text-white'
-                      }`}
-                      title={prod.es_destacado ? 'Hero Destacado en TV' : 'Destacar'}
-                    >
-                      <Sparkles className="w-4 h-4" />
-                    </button>
-
-                    {/* Delete */}
-                    <button
-                      onClick={() => {
-                        if (confirm(`¿Eliminar permanentemente "${prod.nombre}"?`)) {
-                          deleteProducto(prod.id);
-                        }
-                      }}
-                      className="p-2 rounded-xl bg-zinc-800/80 hover:bg-red-950 text-zinc-400 hover:text-red-400 transition"
-                      title="Eliminar producto"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {guardandoOrdenProd && (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/30 animate-pulse shrink-0">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Guardando orden...
+                    </span>
+                  )}
+                </>
+              ) : (
+                <div className="text-zinc-400">
+                  💡 <span className="text-zinc-300 font-bold">Consejo:</span> Selecciona una categoría específica arriba (ej. <span className="text-amber-400 font-bold">Burgers + Papas</span>) para reordenar sus productos de arriba a abajo.
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              )}
+            </div>
+
+            {/* Product Table / Cards */}
+            <div className="space-y-3">
+              {productosFiltrados.map((prod, index) => {
+                const canDrag = categoriaFiltro !== 'todas';
+                const isDragging = draggedProdIndex === index;
+                const isDragOver = dragOverProdIndex === index;
+
+                return (
+                  <div
+                    key={prod.id}
+                    draggable={canDrag}
+                    onDragStart={canDrag ? (e) => handleDragStartProd(e, index) : undefined}
+                    onDragOver={canDrag ? (e) => handleDragOverProd(e, index) : undefined}
+                    onDrop={canDrag ? (e) => handleDropProd(e, index) : undefined}
+                    onDragEnd={canDrag ? handleDragEndProd : undefined}
+                    className={`p-3.5 sm:p-4 rounded-2xl bg-[#12141c] border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 select-none ${
+                      isDragging
+                        ? 'opacity-40 scale-[0.99] border-amber-500 shadow-amber-500/20'
+                        : isDragOver
+                        ? 'ring-2 ring-amber-400 bg-amber-500/10 border-amber-400'
+                        : !prod.disponible
+                        ? 'border-red-900/40 opacity-60'
+                        : prod.es_destacado
+                        ? 'border-amber-500/30'
+                        : 'border-white/5 hover:border-zinc-700'
+                    }`}
+                  >
+                    {/* Controles de orden Drag & Drop + Subir/Bajar + Thumbnail & Info */}
+                    <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
+                      {/* Controles Subir/Bajar y Asa Drag */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {canDrag ? (
+                          <>
+                            <div
+                              className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg text-zinc-500 hover:text-amber-400 hover:bg-zinc-800/80 transition"
+                              title="Arrastrar para mover arriba o abajo"
+                            >
+                              <GripVertical className="w-5 h-5" />
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <button
+                                type="button"
+                                disabled={index === 0 || guardandoOrdenProd}
+                                onClick={() => moverProducto(index, index - 1)}
+                                className="p-1 rounded bg-zinc-800/80 hover:bg-amber-500 hover:text-black text-zinc-400 disabled:opacity-20 disabled:pointer-events-none transition"
+                                title="Subir de posición"
+                              >
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={index === productosFiltrados.length - 1 || guardandoOrdenProd}
+                                onClick={() => moverProducto(index, index + 1)}
+                                className="p-1 rounded bg-zinc-800/80 hover:bg-amber-500 hover:text-black text-zinc-400 disabled:opacity-20 disabled:pointer-events-none transition"
+                                title="Bajar de posición"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-5 text-center">
+                            <span className="text-[10px] font-mono text-zinc-500 font-bold">
+                              #{prod.orden || index + 1}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Imagen del Producto */}
+                      <div className="relative w-14 h-14 rounded-xl bg-zinc-900 overflow-hidden shrink-0 border border-white/10">
+                        {prod.imagen_url ? (
+                          <Image
+                            src={prod.imagen_url}
+                            alt={prod.nombre}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                            <ImageIcon className="w-6 h-6" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Información del Producto */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {canDrag && (
+                            <span className="text-xs font-mono font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              #{prod.orden || index + 1}
+                            </span>
+                          )}
+                          <h3 className="font-bold text-white text-base truncate">{prod.nombre}</h3>
+                          {prod.es_destacado && (
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                              Destacado TV
+                            </span>
+                          )}
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">
+                            TV {prod.pantalla_tv === 0 ? 'Ambas' : prod.pantalla_tv}
+                          </span>
+                          {prod.imagen_url && prod.mostrar_imagen_carta === false && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-white/5">
+                              Foto solo en TV
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1">{prod.descripcion}</p>
+                      </div>
+                    </div>
+
+                    {/* Price Display */}
+                    <div className="shrink-0 flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                      <div className="text-right">
+                        <span className="text-lg font-black font-mono text-amber-400 block">
+                          {formatoPrecio(prod.precio)}
+                        </span>
+                        {prod.precio_secundario && (
+                          <span className="text-[11px] font-bold text-zinc-400 block">
+                            Sin papas: {formatoPrecio(prod.precio_secundario)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Action Toggles & Edit Button */}
+                      <div className="flex items-center gap-1.5 border-l border-white/10 pl-3">
+                        {/* Botón Editar Completo */}
+                        <button
+                          onClick={() => handleStartEdit(prod)}
+                          className="p-2 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black text-zinc-300 transition"
+                          title="Editar Producto e Imagen"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+
+                        {/* Toggle Foto en Carta */}
+                        <button
+                          onClick={() => handleToggleFotoCarta(prod)}
+                          className={`p-2 rounded-xl text-xs font-bold transition ${
+                            prod.mostrar_imagen_carta !== false
+                              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
+                              : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+                          }`}
+                          title={
+                            prod.mostrar_imagen_carta !== false
+                              ? 'Foto visible en la carta (clic para ocultar en carta)'
+                              : 'Foto oculta en la carta (solo visible en pantallas TV)'
+                          }
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                        </button>
+
+                        {/* Toggle Stock */}
+                        <button
+                          onClick={() => handleToggleDisponible(prod)}
+                          className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition ${
+                            prod.disponible
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
+                              : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
+                          }`}
+                          title={prod.disponible ? 'Disponible (clic para agotar)' : 'Agotado'}
+                        >
+                          {prod.disponible ? (
+                            <CheckCircle2 className="w-4 h-4" />
+                          ) : (
+                            <XCircle className="w-4 h-4" />
+                          )}
+                        </button>
+
+                        {/* Toggle TV */}
+                        <button
+                          onClick={() => handleToggleTV(prod)}
+                          className={`p-2 rounded-xl text-xs font-bold transition ${
+                            prod.mostrar_en_tv
+                              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                              : 'bg-zinc-800 text-zinc-500'
+                          }`}
+                          title={prod.mostrar_en_tv ? 'Visible en TV' : 'Oculto en TV'}
+                        >
+                          <Tv className="w-4 h-4" />
+                        </button>
+
+                        {/* Toggle Destacado */}
+                        <button
+                          onClick={() => handleToggleDestacado(prod)}
+                          className={`p-2 rounded-xl text-xs font-bold transition ${
+                            prod.es_destacado
+                              ? 'bg-amber-500 text-black shadow-md'
+                              : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                          }`}
+                          title={prod.es_destacado ? 'Hero Destacado en TV' : 'Destacar'}
+                        >
+                          <Sparkles className="w-4 h-4" />
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => {
+                            if (confirm(`¿Eliminar permanentemente "${prod.nombre}"?`)) {
+                              deleteProducto(prod.id);
+                            }
+                          }}
+                          className="p-2 rounded-xl bg-zinc-800/80 hover:bg-red-950 text-zinc-400 hover:text-red-400 transition"
+                          title="Eliminar producto"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
       </>
     )}
   </main>

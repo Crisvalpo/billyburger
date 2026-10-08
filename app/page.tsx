@@ -38,11 +38,15 @@ function MainMenuContent() {
   const portadaUrl = configTV[0]?.portada_url || '';
   const estadoHorario = verificarEstadoHorario(configTV[0]?.horario_atencion);
 
+  const categoriasActivasOrdenadas = [...categorias]
+    .filter((c) => c.activo)
+    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+
   return (
     <div className="min-h-screen text-zinc-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
       {/* Top Navbar Sticky */}
       <Navbar
-        categorias={categorias.filter((c) => c.activo)}
+        categorias={categoriasActivasOrdenadas}
         categoriaActiva={categoriaActiva}
         onSelectCategoria={handleSelectCategoria}
       />
@@ -72,12 +76,11 @@ function MainMenuContent() {
         <HeroBanner portadaUrl={portadaUrl} />
 
         {/* List of Sections with Wooden Badges & Horizontal Item Ribbons */}
-        {categorias
-          .filter((cat) => cat.activo)
+        {categoriasActivasOrdenadas
           .map((cat) => {
             const prodsDeCategoria = productos
               .filter((p) => p.categoria_id === cat.id)
-              .sort((a, b) => a.orden - b.orden);
+              .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
 
             return (
               <CategorySection

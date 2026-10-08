@@ -205,6 +205,42 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, data: results });
       }
 
+      case 'reorderCategorias': {
+        const updates: Array<{ id: string; orden: number }> = Array.isArray(data) ? data : [];
+        if (updates.length > 0) {
+          const promises = updates.map((item) =>
+            supabaseAdmin
+              .from('categorias')
+              .update({ orden: item.orden })
+              .eq('id', item.id)
+          );
+          const results = await Promise.all(promises);
+          const errors = results.filter((r) => r.error);
+          if (errors.length > 0) {
+            console.error('Error reordering categorias:', errors);
+          }
+        }
+        return NextResponse.json({ success: true, count: updates.length });
+      }
+
+      case 'reorderProductos': {
+        const updates: Array<{ id: string; orden: number }> = Array.isArray(data) ? data : [];
+        if (updates.length > 0) {
+          const promises = updates.map((item) =>
+            supabaseAdmin
+              .from('productos')
+              .update({ orden: item.orden })
+              .eq('id', item.id)
+          );
+          const results = await Promise.all(promises);
+          const errors = results.filter((r) => r.error);
+          if (errors.length > 0) {
+            console.error('Error reordering productos:', errors);
+          }
+        }
+        return NextResponse.json({ success: true, count: updates.length });
+      }
+
       default:
         return NextResponse.json({ error: 'Acción no válida' }, { status: 400 });
     }

@@ -63,9 +63,11 @@ function TVMenuboardContent() {
 
   // Categorías reales que tienen productos en esta pantalla
   const categoriasConProductos = useMemo(() => {
-    return categorias.filter((c) =>
-      productosFiltrados.some((p) => p.categoria_id === c.id)
-    );
+    return [...categorias]
+      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+      .filter((c) =>
+        productosFiltrados.some((p) => p.categoria_id === c.id)
+      );
   }, [categorias, productosFiltrados]);
 
   // Categoría activa actual
@@ -74,7 +76,9 @@ function TVMenuboardContent() {
   // Productos reales en la categoría activa
   const productosEnCategoria = useMemo(() => {
     if (!activeCategory) return [];
-    return productosFiltrados.filter((p) => p.categoria_id === activeCategory.id);
+    return productosFiltrados
+      .filter((p) => p.categoria_id === activeCategory.id)
+      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
   }, [productosFiltrados, activeCategory]);
 
   // Agrupar productos: Los productos DESTACADOS pertenecen exclusivamente al LADO IZQUIERDO (Hero)
