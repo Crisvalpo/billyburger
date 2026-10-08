@@ -74,7 +74,7 @@ export default function AdminPage() {
   };
 
   const ajustarHora = (horaActual: string, deltaMinutos: number): string => {
-    const [h, m] = (horaActual || '18:00').split(':').map((x) => parseInt(x, 10) || 0);
+    const [h, m] = (horaActual || '11:00').split(':').map((x) => parseInt(x, 10) || 0);
     let total = (h * 60 + m + deltaMinutos) % (24 * 60);
     if (total < 0) total += 24 * 60;
     const nuevoH = Math.floor(total / 60);
@@ -89,6 +89,8 @@ export default function AdminPage() {
   );
   const [guardandoHorario, setGuardandoHorario] = useState<boolean>(false);
   const [horarioGuardadoExito, setHorarioGuardadoExito] = useState<boolean>(false);
+  const [hayCambiosHorario, setHayCambiosHorario] = useState<boolean>(false);
+  const horarioIniciadoRef = useRef<boolean>(false);
   const [horaChileActual, setHoraChileActual] = useState<{ horaStr: string; diaNombre: string; fechaStr: string }>({
     horaStr: '',
     diaNombre: '',
@@ -110,11 +112,17 @@ export default function AdminPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Cargar configuración de horario inicial sin que el polling periódico sobreescriba cambios manuales
   useEffect(() => {
-    if (configTV[0]?.horario_atencion) {
-      setHorarioConfig(configTV[0].horario_atencion);
+    if (configTV && configTV.length > 0 && configTV[0]?.horario_atencion) {
+      if (!horarioIniciadoRef.current) {
+        setHorarioConfig(configTV[0].horario_atencion);
+        if (!loading) {
+          horarioIniciadoRef.current = true;
+        }
+      }
     }
-  }, [configTV]);
+  }, [configTV, loading]);
 
   const handleGuardarHorario = async (nuevaConf?: ConfiguracionHorario) => {
     const confBase = nuevaConf || horarioConfig;
@@ -123,6 +131,8 @@ export default function AdminPage() {
       dias: confBase.dias.map((d) => ({
         ...d,
         nombre: NOMBRES_DIAS_CORRECTOS[d.dia] || d.nombre,
+        horaApertura: (d.horaApertura && d.horaApertura.trim()) || '11:00',
+        horaCierre: (d.horaCierre && d.horaCierre.trim()) || '22:00',
       })),
     };
     try {
@@ -145,6 +155,7 @@ export default function AdminPage() {
         { ...c2, horario_atencion: confAGuardar },
       ]);
 
+      setHayCambiosHorario(false);
       setHorarioGuardadoExito(true);
       setTimeout(() => setHorarioGuardadoExito(false), 3000);
     } catch (err: any) {
@@ -154,7 +165,15 @@ export default function AdminPage() {
     }
   };
 
+  const handleCambiarTab = (tab: 'productos' | 'secciones' | 'portada' | 'horarios' | 'guincha') => {
+    if (activeTab === 'horarios' && hayCambiosHorario) {
+      handleGuardarHorario();
+    }
+    setActiveTab(tab);
+  };
+
   const handleToggleDiaAbierto = (diaIndex: number) => {
+    setHayCambiosHorario(true);
     setHorarioConfig((prev) => {
       const dias = prev.dias.map((d) =>
         d.dia === diaIndex ? { ...d, abierto: !d.abierto } : d
@@ -164,6 +183,7 @@ export default function AdminPage() {
   };
 
   const handleCambiarHoraDia = (diaIndex: number, campo: 'horaApertura' | 'horaCierre', valor: string) => {
+    setHayCambiosHorario(true);
     setHorarioConfig((prev) => {
       const dias = prev.dias.map((d) =>
         d.dia === diaIndex ? { ...d, [campo]: valor } : d
@@ -173,13 +193,19 @@ export default function AdminPage() {
   };
 
   const handleAplicarPresetHorario = (tipo: 'habitual' | '2330' | '0030') => {
+    setHayCambiosHorario(true);
     setHorarioConfig((prev) => {
       const dias = prev.dias.map((d) => {
-        let apertura = '18:00';
-        let cierre = '23:30';
+        let apertura = '11:00';
+        let cierre = '22:00';
         if (tipo === 'habitual') {
-          cierre = d.dia === 5 || d.dia === 6 ? '00:30' : '23:30';
+          apertura = '11:00';
+          cierre = '22:00';
+        } else if (tipo === '2330') {
+          apertura = '11:00';
+          cierre = '23:30';
         } else if (tipo === '0030') {
+          apertura = '11:00';
           cierre = '00:30';
         }
         return {
@@ -338,17 +364,14 @@ export default function AdminPage() {
       setGuardandoPapas(true);
       setPapasGuardadoExito(false);
 
-      if (configTV[0]) {
-        await updateConfigTV({
-          ...configTV[0],
-          precio_papas_combo: precioPapasInput,
-        });
-      }
-      if (configTV[1]) {
-        await updateConfigTV({
-          ...configTV[1],
-          precio_papas_combo: precioPapasInput,
-        });
+      const c1 = configTV.find((c) => c.pantalla_id === 1) || configTV[0];
+      const c2 = configTV.find((c) => c.pantalla_id === 2) || configTV[1];
+      const configsAGuardar: ConfiguracionTV[] = [];
+      if (c1) configsAGuardar.push({ ...c1, precio_papas_combo: precioPapasInput });
+      if (c2 && c2.pantalla_id !== c1?.pantalla_id) configsAGuardar.push({ ...c2, precio_papas_combo: precioPapasInput });
+
+      if (configsAGuardar.length > 0) {
+        await updateAllConfigTV(configsAGuardar);
       }
 
       setPapasGuardadoExito(true);
@@ -808,7 +831,7 @@ export default function AdminPage() {
         {/* Mode Switch: Carrusel horizontal suave en móviles */}
         <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 mb-5 p-1.5 rounded-2xl bg-[#12141c] border border-white/10 max-w-full scrollbar-none">
           <button
-            onClick={() => setActiveTab('productos')}
+            onClick={() => handleCambiarTab('productos')}
             className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-black transition shrink-0 whitespace-nowrap ${
               activeTab === 'productos'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
@@ -818,7 +841,7 @@ export default function AdminPage() {
             🍔 Productos ({productos.length})
           </button>
           <button
-            onClick={() => setActiveTab('secciones')}
+            onClick={() => handleCambiarTab('secciones')}
             className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-black transition shrink-0 whitespace-nowrap ${
               activeTab === 'secciones'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
@@ -828,7 +851,7 @@ export default function AdminPage() {
             🖼️ Secciones ({categorias.length})
           </button>
           <button
-            onClick={() => setActiveTab('portada')}
+            onClick={() => handleCambiarTab('portada')}
             className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-black transition shrink-0 whitespace-nowrap ${
               activeTab === 'portada'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
@@ -838,7 +861,7 @@ export default function AdminPage() {
             ⭐ Portada
           </button>
           <button
-            onClick={() => setActiveTab('horarios')}
+            onClick={() => handleCambiarTab('horarios')}
             className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-black transition shrink-0 whitespace-nowrap ${
               activeTab === 'horarios'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
@@ -848,7 +871,7 @@ export default function AdminPage() {
             ⏰ Horarios
           </button>
           <button
-            onClick={() => setActiveTab('guincha')}
+            onClick={() => handleCambiarTab('guincha')}
             className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-black transition shrink-0 whitespace-nowrap ${
               activeTab === 'guincha'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
@@ -986,30 +1009,61 @@ export default function AdminPage() {
               </div>
 
               {/* Botones de Presets Rápidos para Móvil y Desktop */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block w-full sm:w-auto">
-                  Presets Rápidos:
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-b border-white/5 pb-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block w-full sm:w-auto">
+                    Presets Rápidos:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleAplicarPresetHorario('habitual')}
+                    className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black active:scale-95 text-xs text-amber-300 font-bold border border-white/10 transition"
+                  >
+                    ⚡ Habitual (11:00 - 22:00)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAplicarPresetHorario('2330')}
+                    className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs text-zinc-300 font-medium border border-white/10 transition"
+                  >
+                    ⏰ Cierre 23:30 (11:00 - 23:30)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAplicarPresetHorario('0030')}
+                    className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs text-zinc-300 font-medium border border-white/10 transition"
+                  >
+                    🌙 Cierre 00:30 (11:00 - 00:30)
+                  </button>
+                </div>
+
+                {/* Botón Guardar Superior Inmediato */}
                 <button
                   type="button"
-                  onClick={() => handleAplicarPresetHorario('habitual')}
-                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black active:scale-95 text-xs text-amber-300 font-bold border border-white/10 transition"
+                  disabled={guardandoHorario}
+                  onClick={() => handleGuardarHorario()}
+                  className={`px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center gap-1.5 active:scale-95 disabled:opacity-50 ${
+                    hayCambiosHorario
+                      ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/30'
+                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-white/10'
+                  }`}
                 >
-                  ⚡ Habitual (18:00 - 23:30 / Vie-Sáb 00:30)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAplicarPresetHorario('2330')}
-                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs text-zinc-300 font-medium border border-white/10 transition"
-                >
-                  ⏰ Todos a 23:30
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAplicarPresetHorario('0030')}
-                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs text-zinc-300 font-medium border border-white/10 transition"
-                >
-                  🌙 Todos a 00:30
+                  {guardandoHorario ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : horarioGuardadoExito ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  <span>
+                    {guardandoHorario
+                      ? 'Guardando...'
+                      : horarioGuardadoExito
+                      ? '¡Guardado!'
+                      : hayCambiosHorario
+                      ? 'Guardar Cambios'
+                      : 'Guardar Horario'}
+                  </span>
                 </button>
               </div>
 
@@ -1079,6 +1133,9 @@ export default function AdminPage() {
                             type="time"
                             value={d.horaApertura}
                             onChange={(e) => handleCambiarHoraDia(d.dia, 'horaApertura', e.target.value)}
+                            onBlur={() => {
+                              if (hayCambiosHorario) handleGuardarHorario();
+                            }}
                             className="w-full bg-zinc-900 border border-white/20 rounded-xl px-2.5 py-2 text-sm sm:text-base text-amber-300 font-mono font-bold focus:border-amber-500 focus:outline-none min-h-[44px] [color-scheme:dark] text-center"
                           />
                         </div>
@@ -1114,6 +1171,9 @@ export default function AdminPage() {
                             type="time"
                             value={d.horaCierre}
                             onChange={(e) => handleCambiarHoraDia(d.dia, 'horaCierre', e.target.value)}
+                            onBlur={() => {
+                              if (hayCambiosHorario) handleGuardarHorario();
+                            }}
                             className="w-full bg-zinc-900 border border-white/20 rounded-xl px-2.5 py-2 text-sm sm:text-base text-amber-300 font-mono font-bold focus:border-amber-500 focus:outline-none min-h-[44px] [color-scheme:dark] text-center"
                           />
                         </div>
@@ -1136,7 +1196,13 @@ export default function AdminPage() {
               <textarea
                 rows={2}
                 value={horarioConfig.mensajeCerrado || ''}
-                onChange={(e) => setHorarioConfig({ ...horarioConfig, mensajeCerrado: e.target.value })}
+                onChange={(e) => {
+                  setHayCambiosHorario(true);
+                  setHorarioConfig({ ...horarioConfig, mensajeCerrado: e.target.value });
+                }}
+                onBlur={() => {
+                  if (hayCambiosHorario) handleGuardarHorario();
+                }}
                 placeholder="Ej: Local cerrado en este momento. Revisa nuestros horarios de atención."
                 className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-xs text-white placeholder-zinc-500 focus:border-amber-500 focus:outline-none resize-none"
               />
@@ -1163,6 +1229,29 @@ export default function AdminPage() {
                 <span>{horarioGuardadoExito ? '¡Horarios Guardados con Éxito!' : 'Guardar Horarios de Atención'}</span>
               </button>
             </div>
+
+            {/* Barra flotante si hay cambios sin guardar */}
+            {hayCambiosHorario && (
+              <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-[#12141c]/95 border border-amber-500/50 backdrop-blur-md px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom duration-200">
+                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  Tienes cambios de horario sin guardar
+                </span>
+                <button
+                  type="button"
+                  disabled={guardandoHorario}
+                  onClick={() => handleGuardarHorario()}
+                  className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50"
+                >
+                  {guardandoHorario ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>Guardar Ahora</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : activeTab === 'guincha' ? (
           <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-200">
@@ -1353,55 +1442,6 @@ export default function AdminPage() {
           </div>
         ) : activeTab === 'portada' ? (
           <div className="max-w-xl mx-auto space-y-6">
-            {/* Card: Configuración Global de Opciones de Papas Fritas */}
-            <div className="p-5 rounded-3xl bg-[#12141c] border border-amber-500/40 shadow-2xl">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl shadow">
-                  🍟
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-white">
-                    Precio Opción Papas Fritas
-                  </h3>
-                  <p className="text-xs text-zinc-400">
-                    Ajuste dinámico para Sándwiches, Completos y Fajitas
-                  </p>
-                </div>
-              </div>
-
-              <p className="text-xs text-zinc-300 leading-relaxed mb-4">
-                Define el valor adicional que se sumará automáticamente cuando un cliente seleccione la opción <strong>&ldquo;🍟 Con Papas&rdquo;</strong> en la carta. Si en el futuro sube el precio de las papas, modifícalo aquí sin tocar el código.
-              </p>
-
-              <form onSubmit={handleGuardarPrecioPapas} className="flex items-center gap-3">
-                <div className="relative flex-1">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-sm font-bold">$</span>
-                  <input
-                    type="number"
-                    step="100"
-                    min="0"
-                    value={precioPapasInput}
-                    onChange={(e) => setPrecioPapasInput(Number(e.target.value))}
-                    className="w-full pl-8 pr-4 py-2.5 bg-black/70 border border-white/10 rounded-xl text-amber-400 font-mono font-bold text-base focus:border-amber-500 focus:outline-none"
-                    placeholder="1500"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={guardandoPapas}
-                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-black font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-amber-500/20 disabled:opacity-50 shrink-0"
-                >
-                  {guardandoPapas ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : papasGuardadoExito ? (
-                    <CheckCircle2 className="w-4 h-4" />
-                  ) : (
-                    <Sparkles className="w-4 h-4" />
-                  )}
-                  <span>{papasGuardadoExito ? '¡Guardado!' : 'Guardar Precio'}</span>
-                </button>
-              </form>
-            </div>
 
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed">
               ⭐ <strong>Imagen de Portada (Hero Móvil):</strong> Esta es la foto destacada que ven los clientes en la parte superior de la carta (debajo del logo de Billy Burger y sobre el selector de pedidos). Puedes subir cualquier imagen en formato PNG o JPG, reemplazarla o quitarla cuando lo desees.

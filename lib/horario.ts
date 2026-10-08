@@ -5,13 +5,13 @@ export const HORARIO_DEFAULT: ConfiguracionHorario = {
   modoForzado: 'auto',
   mensajeCerrado: 'Local cerrado en este momento. Revisa nuestros horarios de atención.',
   dias: [
-    { dia: 1, nombre: 'Lunes', abierto: true, horaApertura: '18:00', horaCierre: '23:30' },
-    { dia: 2, nombre: 'Martes', abierto: true, horaApertura: '18:00', horaCierre: '23:30' },
-    { dia: 3, nombre: 'Miércoles', abierto: true, horaApertura: '18:00', horaCierre: '23:30' },
-    { dia: 4, nombre: 'Jueves', abierto: true, horaApertura: '18:00', horaCierre: '23:30' },
-    { dia: 5, nombre: 'Viernes', abierto: true, horaApertura: '18:00', horaCierre: '00:30' },
-    { dia: 6, nombre: 'Sábado', abierto: true, horaApertura: '18:00', horaCierre: '00:30' },
-    { dia: 0, nombre: 'Domingo', abierto: true, horaApertura: '18:00', horaCierre: '23:30' },
+    { dia: 1, nombre: 'Lunes', abierto: true, horaApertura: '11:00', horaCierre: '22:00' },
+    { dia: 2, nombre: 'Martes', abierto: true, horaApertura: '11:00', horaCierre: '22:00' },
+    { dia: 3, nombre: 'Miércoles', abierto: true, horaApertura: '11:00', horaCierre: '22:00' },
+    { dia: 4, nombre: 'Jueves', abierto: true, horaApertura: '11:00', horaCierre: '22:00' },
+    { dia: 5, nombre: 'Viernes', abierto: true, horaApertura: '11:00', horaCierre: '22:00' },
+    { dia: 6, nombre: 'Sábado', abierto: true, horaApertura: '11:00', horaCierre: '22:00' },
+    { dia: 0, nombre: 'Domingo', abierto: true, horaApertura: '11:00', horaCierre: '22:00' },
   ],
 };
 
