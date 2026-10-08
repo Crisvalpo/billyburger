@@ -44,14 +44,10 @@ function MainMenuContent() {
         onSelectCategoria={handleSelectCategoria}
       />
 
-      {/* Main Container - Centrado y enfocado para experiencia móvil de carta */}
-      <main className="flex-1 max-w-xl w-full mx-auto px-3 sm:px-4 pb-20">
-        {/* Hero Top Emblem, Portada & Quick Menu Index */}
-        <HeroBanner
-          categorias={categorias.filter((c) => c.activo)}
-          onSelectCategoria={handleSelectCategoria}
-          portadaUrl={portadaUrl}
-        />
+      {/* Main Container - Ancho completo con encabezados full-width */}
+      <main className="flex-1 w-full mx-auto pb-24">
+        {/* Hero Top Emblem & Portada */}
+        <HeroBanner portadaUrl={portadaUrl} />
 
         {/* List of Sections with Wooden Badges & Horizontal Item Ribbons */}
         {categorias

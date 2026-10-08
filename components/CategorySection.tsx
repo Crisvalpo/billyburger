@@ -173,68 +173,73 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
   if (productos.length === 0) return null;
 
   return (
-    <section id={categoria.slug} className="scroll-mt-28 py-6">
-      {/* 1. SECTION WOOD HEADER BADGE (Sin enlaces dispersos de WhatsApp) */}
-      <div className="flex flex-col items-center mb-5">
-        <div className="relative px-8 py-2.5 rounded-2xl bg-gradient-to-b from-[#2a1708] via-[#190d04] to-[#0a0502] border-2 border-amber-600/60 shadow-2xl flex items-center gap-3">
-          <div className="w-6 h-6 rounded-full border border-amber-400/40 p-0.5 flex items-center justify-center">
-            <Image
-              src="/images/logo-icon.png"
-              alt="Icon"
-              width={20}
-              height={20}
-              className="object-contain"
-            />
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-amber-100 tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-            {categoria.nombre}
-          </h2>
+    <section id={categoria.slug} className="scroll-mt-28 py-4 sm:py-6 w-full">
+      {/* 1. SECTION WOOD HEADER - TODO EL ANCHO DE VENTANA SIN BORDES */}
+      <div className="w-full bg-gradient-to-b from-[#2a1708] via-[#190d04] to-[#0a0502] py-3.5 sm:py-4 shadow-2xl flex items-center justify-center gap-3 border-none">
+        <div className="w-7 h-7 rounded-full border border-amber-400/40 p-0.5 flex items-center justify-center">
+          <Image
+            src="/images/logo-icon.png"
+            alt="Icon"
+            width={22}
+            height={22}
+            className="object-contain"
+          />
         </div>
+        <h2 className="text-2xl sm:text-3xl font-black text-amber-100 tracking-wider uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+          {categoria.nombre}
+        </h2>
+      </div>
 
+      {/* Contenedor centralizado para los productos */}
+      <div className="max-w-xl w-full mx-auto px-3 sm:px-4">
         {/* 2. SECTION HERO CUTOUT IMAGE */}
         {categoria.imagen_url && categoria.imagen_url.trim() !== '' && (
-          <div className="relative w-44 h-32 sm:w-52 sm:h-36 my-3 filter drop-shadow-[0_12px_16px_rgba(0,0,0,0.85)]">
-            <Image
-              src={categoria.imagen_url}
-              alt={categoria.nombre}
-              fill
-              unoptimized
-              className="object-contain hover:scale-105 transition-transform duration-300"
-            />
+          <div className="flex justify-center">
+            <div className="relative w-44 h-32 sm:w-52 sm:h-36 my-3 filter drop-shadow-[0_12px_16px_rgba(0,0,0,0.85)]">
+              <Image
+                src={categoria.imagen_url}
+                alt={categoria.nombre}
+                fill
+                unoptimized
+                className="object-contain hover:scale-105 transition-transform duration-300"
+              />
+            </div>
           </div>
         )}
 
         {/* Banner informativo de sección */}
         {categoria.slug === 'sandwiches' && (
-          <div className="mb-3 px-4 py-1.5 rounded-full bg-black/75 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-lg">
-            🍟 Todos los Sándwich incluyen Deliciosas Papas Fritas
+          <div className="my-3 text-center">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-black/75 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-lg">
+              🍟 Todos los Sándwich incluyen Deliciosas Papas Fritas
+            </span>
+          </div>
+        )}
+
+        {/* 3. MENU ITEMS LIST */}
+        <div className="space-y-3 mt-3">
+          {productos.map((prod) => (
+            <ProductRow key={prod.id} prod={prod} />
+          ))}
+        </div>
+
+        {/* 4. ADICIONALES (EN SECCIONES CORRESPONDIENTES) */}
+        {(categoria.slug === 'fajitas' || categoria.slug === 'completos' || categoria.slug === 'papas-fritas') && (
+          <div className="mt-4 p-3.5 rounded-2xl bg-black/85 backdrop-blur-sm border border-amber-500/20 shadow-xl flex items-center justify-between gap-4">
+            <div>
+              <h4 className="text-xs font-black text-amber-300 uppercase tracking-wider">
+                Adicionales & Agregados
+              </h4>
+              <p className="text-[11px] text-zinc-300 mt-0.5">
+                Carne o Pollo +$1.300 • Otros agregados +$1.000
+              </p>
+              <p className="text-xs font-bold text-white mt-1">
+                🍟 Agrégale Deliciosas Papas Fritas: <span className="text-amber-400 font-mono">+$1.500</span>
+              </p>
+            </div>
           </div>
         )}
       </div>
-
-      {/* 3. MENU ITEMS LIST */}
-      <div className="space-y-3">
-        {productos.map((prod) => (
-          <ProductRow key={prod.id} prod={prod} />
-        ))}
-      </div>
-
-      {/* 4. ADICIONALES (EN SECCIONES CORRESPONDIENTES) */}
-      {(categoria.slug === 'fajitas' || categoria.slug === 'completos' || categoria.slug === 'papas-fritas') && (
-        <div className="mt-4 p-3.5 rounded-2xl bg-black/85 backdrop-blur-sm border border-amber-500/20 shadow-xl flex items-center justify-between gap-4">
-          <div>
-            <h4 className="text-xs font-black text-amber-300 uppercase tracking-wider">
-              Adicionales & Agregados
-            </h4>
-            <p className="text-[11px] text-zinc-300 mt-0.5">
-              Carne o Pollo +$1.300 • Otros agregados +$1.000
-            </p>
-            <p className="text-xs font-bold text-white mt-1">
-              🍟 Agrégale Deliciosas Papas Fritas: <span className="text-amber-400 font-mono">+$1.500</span>
-            </p>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

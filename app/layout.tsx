@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
+import { PwaRegister } from '@/components/PwaRegister';
+
 export const viewport: Viewport = {
-  themeColor: '#f59e0b',
+  themeColor: '#170d05',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -13,6 +15,12 @@ export const metadata: Metadata = {
   title: 'BillyBurger | Carta Digital & Menú Online',
   description:
     'Las mejores hamburguesas, sándwiches, chorrillanas y completos de Curauma. Pide directo al WhatsApp +56 9 3255 3527.',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'BillyBurger',
+  },
   icons: {
     icon: '/images/logo.png',
     apple: '/images/logo.png',
@@ -30,6 +38,7 @@ export default function RootLayout({
         <link rel="icon" href="/images/logo.png" />
       </head>
       <body className="min-h-full flex flex-col bg-[#0b0c0f] text-zinc-100">
+        <PwaRegister />
         {children}
       </body>
     </html>

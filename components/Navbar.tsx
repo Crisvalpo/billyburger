@@ -17,35 +17,6 @@ export function Navbar({ categorias, categoriaActiva, onSelectCategoria }: Navba
   const { totalItems, setIsOpen } = useCart();
   return (
     <header className="sticky top-0 z-50 bg-[#140b04]/90 backdrop-blur-md border-b border-amber-600/30 transition-all shadow-2xl">
-      {/* Top micro bar */}
-      <div className="bg-gradient-to-r from-[#2b1404] via-[#3a1b06] to-[#2b1404] text-amber-200 text-xs font-semibold py-1 px-4 border-b border-amber-500/20">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[11px] font-bold">🔥 ¡Abiertos! Pide directo por WhatsApp</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/tv?pantalla=1"
-              target="_blank"
-              className="flex items-center gap-1 hover:text-amber-400 transition text-[11px] bg-black/40 px-2 py-0.5 rounded border border-white/5"
-              title="Ver Pantalla TV"
-            >
-              <Tv className="w-3.5 h-3.5 text-amber-400" />
-              <span>Modo TV</span>
-            </Link>
-            <Link
-              href="/admin"
-              className="flex items-center gap-1 hover:text-amber-400 transition text-[11px] bg-black/40 px-2 py-0.5 rounded border border-white/5"
-              title="Panel de Control"
-            >
-              <Settings className="w-3.5 h-3.5 text-amber-400" />
-              <span>Admin</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-
       {/* Main branding & quick WhatsApp */}
       <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">

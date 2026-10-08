@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MessageCircle, Phone, Tv, Settings } from 'lucide-react';
+import { MessageCircle, Phone } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -81,25 +81,7 @@ export function Footer() {
           />
         </div>
 
-        {/* 4. ENLACES DEL SISTEMA (TV & ADMIN) */}
-        <div className="mt-4 flex items-center justify-center gap-4 text-xs font-bold text-amber-200/80">
-          <Link href="/tv?pantalla=1" className="hover:text-amber-400 flex items-center gap-1 transition">
-            <Tv className="w-3.5 h-3.5 text-amber-400" />
-            <span>Modo TV 1</span>
-          </Link>
-          <span>•</span>
-          <Link href="/tv?pantalla=2" className="hover:text-amber-400 flex items-center gap-1 transition">
-            <Tv className="w-3.5 h-3.5 text-amber-400" />
-            <span>Modo TV 2</span>
-          </Link>
-          <span>•</span>
-          <Link href="/admin" className="hover:text-amber-400 flex items-center gap-1 transition">
-            <Settings className="w-3.5 h-3.5 text-amber-400" />
-            <span>Gestión Precios</span>
-          </Link>
-        </div>
-
-        {/* 5. CRÉDITOS OFICIALES ORIGINALES */}
+        {/* CRÉDITOS OFICIALES */}
         <p className="mt-6 text-[11px] text-amber-100/60 font-semibold tracking-wider">
           Design Print Curauma - Narkis &amp; Luke
         </p>
