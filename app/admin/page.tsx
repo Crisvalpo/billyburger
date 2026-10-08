@@ -25,14 +25,16 @@ export default function AdminPage() {
   const {
     categorias,
     productos,
+    configTV,
     updateCategoria,
     updateProducto,
+    updateConfigTV,
     addProducto,
     deleteProducto,
     resetToDefaults,
   } = useMenuData();
 
-  const [activeTab, setActiveTab] = useState<'productos' | 'secciones'>('productos');
+  const [activeTab, setActiveTab] = useState<'productos' | 'secciones' | 'portada'>('productos');
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
@@ -42,6 +44,7 @@ export default function AdminPage() {
   const fileInputEditRef = useRef<HTMLInputElement>(null);
   const fileInputNewRef = useRef<HTMLInputElement>(null);
   const fileInputCatRef = useRef<HTMLInputElement>(null);
+  const fileInputPortadaRef = useRef<HTMLInputElement>(null);
 
   // Formulario nuevo producto
   const [nuevoNombre, setNuevoNombre] = useState('');
@@ -146,6 +149,69 @@ export default function AdminPage() {
     } catch (e) {
       console.warn('Error borrando foto del bucket:', e);
       setEditingCategoria({ ...editingCategoria, imagen_url: '' });
+    }
+  };
+
+  const handlePortadaUpload = async (file: File) => {
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const currentPortada = configTV[0]?.portada_url;
+      if (currentPortada) {
+        formData.append('oldImageUrl', currentPortada);
+      }
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        const baseConfig = configTV[0] || {
+          pantalla_id: 1,
+          nombre: 'Pantalla 1 - Burgers & Papas Fritas',
+          segundos_rotacion: 12,
+          cintillo_texto: '¡Bienvenido a Billy Burger!',
+        };
+        await updateConfigTV({
+          ...baseConfig,
+          portada_url: data.url,
+        });
+      } else {
+        alert(data.error || 'Error al subir imagen de portada');
+      }
+    } catch (e: any) {
+      alert('Error al subir: ' + e.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeletePortada = async () => {
+    const currentPortada = configTV[0]?.portada_url;
+    if (!currentPortada) return;
+    try {
+      await fetch('/api/upload', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: currentPortada }),
+      });
+      if (configTV[0]) {
+        await updateConfigTV({
+          ...configTV[0],
+          portada_url: '',
+        });
+      }
+    } catch (e) {
+      console.warn('Error eliminando foto de portada:', e);
+      if (configTV[0]) {
+        await updateConfigTV({
+          ...configTV[0],
+          portada_url: '',
+        });
+      }
     }
   };
 
@@ -307,11 +373,11 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Mode Switch: Productos vs Imágenes de Secciones */}
-        <div className="flex items-center gap-3 mb-6 p-1.5 rounded-2xl bg-[#12141c] border border-white/10 w-fit">
+        {/* Mode Switch: Productos vs Imágenes de Secciones vs Portada */}
+        <div className="flex items-center gap-2 sm:gap-3 mb-6 p-1.5 rounded-2xl bg-[#12141c] border border-white/10 w-fit flex-wrap">
           <button
             onClick={() => setActiveTab('productos')}
-            className={`px-5 py-2 rounded-xl text-xs font-black transition ${
+            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition ${
               activeTab === 'productos'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
                 : 'text-zinc-400 hover:text-white'
@@ -321,17 +387,96 @@ export default function AdminPage() {
           </button>
           <button
             onClick={() => setActiveTab('secciones')}
-            className={`px-5 py-2 rounded-xl text-xs font-black transition ${
+            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition ${
               activeTab === 'secciones'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            🖼️ Imágenes de Secciones / Categorías ({categorias.length})
+            🖼️ Imágenes de Secciones ({categorias.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('portada')}
+            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition ${
+              activeTab === 'portada'
+                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            ⭐ Foto de Portada (Hero)
           </button>
         </div>
 
-        {activeTab === 'secciones' ? (
+        {activeTab === 'portada' ? (
+          <div className="max-w-xl mx-auto space-y-6">
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed">
+              ⭐ <strong>Imagen de Portada (Hero Móvil):</strong> Esta es la foto destacada que ven los clientes en la parte superior de la carta (debajo del logo de Billy Burger y sobre el selector de pedidos). Puedes subir cualquier imagen en formato PNG o JPG, reemplazarla o quitarla cuando lo desees.
+            </div>
+
+            <div className="p-6 rounded-3xl bg-[#12141c] border border-white/10 shadow-2xl flex flex-col items-center text-center">
+              <span className="text-xs font-black uppercase tracking-wider text-amber-400 mb-3">
+                Previsualización Actual de la Portada
+              </span>
+
+              <div className="relative w-64 h-48 sm:w-72 sm:h-56 rounded-2xl bg-black/60 border-2 border-dashed border-white/20 p-2 flex items-center justify-center overflow-hidden shadow-inner my-2">
+                {configTV[0]?.portada_url && configTV[0].portada_url.trim() !== '' ? (
+                  <Image
+                    src={configTV[0].portada_url}
+                    alt="Portada Actual"
+                    fill
+                    unoptimized
+                    className="object-contain p-2"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-zinc-500 p-4">
+                    <ImageIcon className="w-12 h-12 mb-2 stroke-[1.5]" />
+                    <span className="text-xs font-bold text-zinc-400">Sin foto de portada activa</span>
+                    <span className="text-[11px] text-zinc-500 mt-1">La carta mostrará solo el logo e índice</span>
+                  </div>
+                )}
+              </div>
+
+              <input
+                ref={fileInputPortadaRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handlePortadaUpload(file);
+                }}
+              />
+
+              <div className="mt-5 flex items-center gap-3">
+                <button
+                  type="button"
+                  disabled={isUploading}
+                  onClick={() => fileInputPortadaRef.current?.click()}
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-wider flex items-center gap-2 transition shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  <span>{configTV[0]?.portada_url ? 'Cambiar Foto Portada' : 'Subir Foto Portada'}</span>
+                </button>
+
+                {configTV[0]?.portada_url && (
+                  <button
+                    type="button"
+                    disabled={isUploading}
+                    onClick={handleDeletePortada}
+                    className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 text-xs font-bold transition flex items-center gap-1.5 border border-white/5 active:scale-95 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Quitar Foto</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : activeTab === 'secciones' ? (
           <div className="space-y-4">
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
               💡 Aquí puedes <strong>subir o cambiar la foto principal de cabecera</strong> para cada sección (Hamburguesas, Sándwiches, Fajitas, etc.). Cada foto que subas va directo al bucket de Supabase y puedes eliminarla cuando desees.

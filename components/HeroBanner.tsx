@@ -2,15 +2,30 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { MessageCircle, Phone } from 'lucide-react';
+import { Phone, ShoppingBag, ArrowDown } from 'lucide-react';
 import { Categoria } from '@/lib/types';
+import { useCart } from './CartContext';
 
 interface HeroBannerProps {
   categorias: Categoria[];
   onSelectCategoria: (slug: string) => void;
+  portadaUrl?: string;
 }
 
-export function HeroBanner({ categorias, onSelectCategoria }: HeroBannerProps) {
+export function HeroBanner({ categorias, onSelectCategoria, portadaUrl }: HeroBannerProps) {
+  const { totalItems, setIsOpen } = useCart();
+
+  const handleCtaClick = () => {
+    if (totalItems > 0) {
+      setIsOpen(true);
+    } else {
+      // Scroll al primer ítem o categoría
+      if (categorias[0]) {
+        onSelectCategoria(categorias[0].slug);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col items-center text-center pt-6 pb-4 px-4">
       {/* 1. TOP WOODEN SIGN / EMBLEM */}
@@ -25,28 +40,31 @@ export function HeroBanner({ categorias, onSelectCategoria }: HeroBannerProps) {
         />
       </div>
 
-      {/* 2. HERO BURGER PHOTO */}
-      <div className="relative w-72 h-56 sm:w-80 sm:h-64 my-2 filter drop-shadow-[0_15px_25px_rgba(0,0,0,0.95)] hover:scale-105 transition-transform duration-300">
-        <Image
-          src="/images/burger-png.png"
-          alt="Hamburguesa BillyBurger"
-          fill
-          className="object-contain"
-          priority
-        />
-      </div>
+      {/* 2. HERO PORTADA / BANNER DINÁMICO */}
+      {portadaUrl && portadaUrl.trim() !== '' && (
+        <div className="relative w-72 h-56 sm:w-80 sm:h-64 my-2 filter drop-shadow-[0_15px_25px_rgba(0,0,0,0.95)] hover:scale-105 transition-transform duration-300">
+          <Image
+            src={portadaUrl}
+            alt="Portada BillyBurger"
+            fill
+            unoptimized
+            className="object-contain"
+            priority
+          />
+        </div>
+      )}
 
-      {/* 3. HAZ TU PEDIDO BUTTON */}
+      {/* 3. BOTÓN PRINCIPAL DE ORDEN INTELIGENTE */}
       <div className="my-4 flex flex-wrap items-center justify-center gap-3">
-        <a
-          href="https://wa.me/56932553527?text=Hola%20BillyBurger!%20Quisiera%20hacer%20un%20pedido."
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-6 py-2.5 rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-sm uppercase tracking-wider flex items-center gap-2.5 shadow-xl shadow-black/80 hover:scale-105 active:scale-95 transition"
+        <button
+          type="button"
+          onClick={handleCtaClick}
+          className="px-6 py-2.5 rounded-full bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 text-black font-black text-sm uppercase tracking-wider flex items-center gap-2.5 shadow-xl shadow-black/80 hover:scale-105 active:scale-95 transition"
         >
-          <MessageCircle className="w-5 h-5 fill-white" />
-          <span>Haz tu Pedido</span>
-        </a>
+          <ShoppingBag className="w-5 h-5 stroke-[2.5]" />
+          <span>{totalItems > 0 ? `Ver Mi Orden (${totalItems})` : 'Elegir Menú'}</span>
+          {totalItems === 0 && <ArrowDown className="w-4 h-4 ml-0.5" />}
+        </button>
 
         <a
           href="tel:+56932553527"

@@ -242,6 +242,38 @@ export function useMenuData() {
     }
   };
 
+  const updateConfigTV = async (configActualizada: ConfiguracionTV) => {
+    setConfigTV((prev) =>
+      prev.map((c) =>
+        c.pantalla_id === configActualizada.pantalla_id ? configActualizada : c
+      )
+    );
+    if (typeof window !== 'undefined') {
+      const items = configTV.map((c) =>
+        c.pantalla_id === configActualizada.pantalla_id ? configActualizada : c
+      );
+      localStorage.setItem(STORAGE_KEYS.CONFIG_TV, JSON.stringify(items));
+      bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    try {
+      await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateConfigTV', data: configActualizada }),
+      });
+    } catch (e) {
+      console.warn('Error saving configTV via /api/menu:', e);
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      await supabase
+        .from('configuracion_tv')
+        .update(configActualizada)
+        .eq('pantalla_id', configActualizada.pantalla_id);
+    }
+  };
+
   // Función para resetear datos iniciales
   const resetToDefaults = () => {
     if (typeof window !== 'undefined') {
@@ -265,6 +297,7 @@ export function useMenuData() {
     loading,
     updateCategoria,
     updateProducto,
+    updateConfigTV,
     addProducto,
     deleteProducto,
     resetToDefaults,

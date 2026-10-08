@@ -5,12 +5,14 @@ import { useMenuData } from '@/lib/store';
 import { Navbar } from '@/components/Navbar';
 import { HeroBanner } from '@/components/HeroBanner';
 import { CategorySection } from '@/components/CategorySection';
-import { FloatingWhatsApp } from '@/components/FloatingWhatsApp';
+import { CartFloatingBar } from '@/components/CartFloatingBar';
+import { OrderDrawer } from '@/components/OrderDrawer';
+import { CartProvider } from '@/components/CartContext';
 import { Footer } from '@/components/Footer';
 import { BillyLoader } from '@/components/BillyLoader';
 
-export default function HomePage() {
-  const { categorias, productos, loading } = useMenuData();
+function MainMenuContent() {
+  const { categorias, productos, configTV, loading } = useMenuData();
   const [categoriaActiva, setCategoriaActiva] = useState<string>(
     categorias[0]?.slug || 'fajitas'
   );
@@ -31,6 +33,8 @@ export default function HomePage() {
     );
   }
 
+  const portadaUrl = configTV[0]?.portada_url || '';
+
   return (
     <div className="min-h-screen text-zinc-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
       {/* Top Navbar Sticky */}
@@ -41,11 +45,12 @@ export default function HomePage() {
       />
 
       {/* Main Container - Centrado y enfocado para experiencia móvil de carta */}
-      <main className="flex-1 max-w-xl w-full mx-auto px-3 sm:px-4">
-        {/* Hero Top Emblem, Burger & Quick Menu Index */}
+      <main className="flex-1 max-w-xl w-full mx-auto px-3 sm:px-4 pb-20">
+        {/* Hero Top Emblem, Portada & Quick Menu Index */}
         <HeroBanner
           categorias={categorias.filter((c) => c.activo)}
           onSelectCategoria={handleSelectCategoria}
+          portadaUrl={portadaUrl}
         />
 
         {/* List of Sections with Wooden Badges & Horizontal Item Ribbons */}
@@ -66,11 +71,22 @@ export default function HomePage() {
           })}
       </main>
 
-      {/* Floating Sticky WhatsApp Button */}
-      <FloatingWhatsApp />
+      {/* Drawer modal de revisión de pedido */}
+      <OrderDrawer />
+
+      {/* Barra o botón flotante inteligente */}
+      <CartFloatingBar />
 
       {/* Rustic Footer with Instagram and Events */}
       <Footer />
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <CartProvider>
+      <MainMenuContent />
+    </CartProvider>
   );
 }

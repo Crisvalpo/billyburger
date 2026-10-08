@@ -90,6 +90,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true });
       }
 
+      case 'updateConfigTV': {
+        const { data: updated, error } = await supabaseAdmin
+          .from('configuracion_tv')
+          .update(data)
+          .eq('pantalla_id', data.pantalla_id)
+          .select();
+        if (error) throw error;
+        return NextResponse.json({ success: true, data: updated });
+      }
+
       default:
         return NextResponse.json({ error: 'Acción no válida' }, { status: 400 });
     }

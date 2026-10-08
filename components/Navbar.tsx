@@ -3,8 +3,9 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Phone, MessageCircle, Tv, Settings } from 'lucide-react';
+import { Phone, Tv, Settings, ShoppingBag } from 'lucide-react';
 import { Categoria } from '@/lib/types';
+import { useCart } from './CartContext';
 
 interface NavbarProps {
   categorias: Categoria[];
@@ -13,6 +14,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ categorias, categoriaActiva, onSelectCategoria }: NavbarProps) {
+  const { totalItems, setIsOpen } = useCart();
   return (
     <header className="sticky top-0 z-50 bg-[#140b04]/90 backdrop-blur-md border-b border-amber-600/30 transition-all shadow-2xl">
       {/* Top micro bar */}
@@ -67,7 +69,7 @@ export function Navbar({ categorias, categoriaActiva, onSelectCategoria }: Navba
           </div>
         </Link>
 
-        {/* WhatsApp Call to action */}
+        {/* Botón de Orden Inteligente */}
         <div className="flex items-center gap-2">
           <a
             href="tel:+56932553527"
@@ -76,15 +78,15 @@ export function Navbar({ categorias, categoriaActiva, onSelectCategoria }: Navba
           >
             <Phone className="w-4 h-4" />
           </a>
-          <a
-            href="https://wa.me/56932553527?text=Hola%20BillyBurger!%20Quisiera%20hacer%20un%20pedido."
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs shadow-lg shadow-black/60 transition active:scale-95"
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-black text-xs shadow-lg shadow-black/60 transition active:scale-95"
+            title="Ver orden activa"
           >
-            <MessageCircle className="w-4 h-4 fill-white" />
-            <span>Pedir</span>
-          </a>
+            <ShoppingBag className="w-4 h-4" />
+            <span>Mi Orden{totalItems > 0 ? ` (${totalItems})` : ''}</span>
+          </button>
         </div>
       </div>
 

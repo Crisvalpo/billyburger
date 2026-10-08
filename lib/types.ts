@@ -40,4 +40,5 @@ export interface ConfiguracionTV {
   nombre: string;
   segundos_rotacion: number;
   cintillo_texto: string;
+  portada_url?: string;
 }

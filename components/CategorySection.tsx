@@ -1,17 +1,19 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { Producto, Categoria } from '@/lib/types';
-import { MessageCircle } from 'lucide-react';
+import { useCart } from './CartContext';
+import { Plus, Minus, ShoppingBag } from 'lucide-react';
 
 interface CategorySectionProps {
   categoria: Categoria;
   productos: Producto[];
 }
 
-export function CategorySection({ categoria, productos }: CategorySectionProps) {
-  if (productos.length === 0) return null;
+function ProductRow({ prod }: { prod: Producto }) {
+  const { addItem, removeItem, getItemQuantity } = useCart();
+  const [sinPapas, setSinPapas] = useState(false);
 
   const formatoPrecio = (precio: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -21,9 +23,158 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
     }).format(precio);
   };
 
+  const precioActual = sinPapas && prod.precio_secundario
+    ? prod.precio_secundario
+    : prod.precio;
+
+  const cantidad = getItemQuantity(prod.id, sinPapas);
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-xl bg-black/80 hover:bg-black/90 backdrop-blur-sm border transition-all duration-200 p-3 sm:p-4 shadow-[0_4px_12px_rgba(0,0,0,0.7)] ${
+        cantidad > 0
+          ? 'border-amber-500/80 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+          : 'border-black/40'
+      } ${!prod.disponible ? 'opacity-50 grayscale' : ''}`}
+    >
+      <div className="flex items-start gap-3">
+        {/* Miniatura del producto (si tiene foto subida) */}
+        {prod.imagen_url && prod.imagen_url.trim() !== '' && (
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-black/40 border border-amber-500/20 overflow-hidden shrink-0 shadow-md">
+            <Image
+              src={prod.imagen_url}
+              alt={prod.nombre}
+              fill
+              unoptimized
+              className="object-cover hover:scale-110 transition-transform duration-300"
+            />
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+          {/* Fila Principal: Nombre del Producto + Precio */}
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base sm:text-lg font-black text-white tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                {prod.nombre}
+              </h3>
+              {prod.es_destacado && (
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500 text-black shadow">
+                  Favorito
+                </span>
+              )}
+              {!prod.disponible && (
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-red-600 text-white">
+                  Agotado
+                </span>
+              )}
+            </div>
+
+            <div className="text-right shrink-0">
+              <span className="text-base sm:text-xl font-black text-amber-400 font-mono tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+                {formatoPrecio(precioActual)}
+              </span>
+            </div>
+          </div>
+
+          {/* Fila Secundaria: Ingredientes */}
+          {prod.descripcion && (
+            <p className="mt-1 text-xs sm:text-sm text-zinc-200 font-normal leading-relaxed tracking-wide">
+              {prod.descripcion}
+            </p>
+          )}
+
+          {/* Selector de Papas si el producto tiene precio secundario */}
+          {prod.precio_secundario && (
+            <div className="mt-2.5 flex items-center gap-2">
+              <span className="text-[11px] font-bold text-zinc-400">Opción:</span>
+              <div className="inline-flex rounded-lg bg-zinc-900/90 p-0.5 border border-white/10 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setSinPapas(false)}
+                  className={`px-2 py-1 rounded-md font-bold transition text-[11px] ${
+                    !sinPapas
+                      ? 'bg-amber-500 text-black shadow'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Con Papas ({formatoPrecio(prod.precio)})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSinPapas(true)}
+                  className={`px-2 py-1 rounded-md font-bold transition text-[11px] ${
+                    sinPapas
+                      ? 'bg-amber-500 text-black shadow'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  {prod.etiqueta_precio_secundario || 'Sin Papas'} ({formatoPrecio(prod.precio_secundario)})
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Control interactivo de Agregar a la Orden */}
+      {prod.disponible && (
+        <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
+          <div className="text-xs text-zinc-400">
+            {cantidad > 0 && (
+              <span className="text-amber-300 font-bold flex items-center gap-1.5">
+                <ShoppingBag className="w-3.5 h-3.5" />
+                {cantidad} en tu orden ({formatoPrecio(precioActual * cantidad)})
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {cantidad === 0 ? (
+              <button
+                type="button"
+                onClick={() => addItem(prod, sinPapas)}
+                className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md transition hover:scale-105 active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                <span>Agregar</span>
+              </button>
+            ) : (
+              <div className="inline-flex items-center gap-2 bg-zinc-900 border border-amber-500/40 rounded-xl p-1 shadow-md">
+                <button
+                  type="button"
+                  onClick={() => removeItem(prod.id, sinPapas)}
+                  className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:scale-95 flex items-center justify-center text-white transition"
+                  title="Disminuir o quitar"
+                >
+                  <Minus className="w-3.5 h-3.5 stroke-[3]" />
+                </button>
+                <span className="text-sm font-black font-mono px-2 text-amber-400 min-w-[20px] text-center">
+                  {cantidad}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => addItem(prod, sinPapas)}
+                  className="w-7 h-7 rounded-lg bg-amber-500 hover:bg-amber-400 active:scale-95 flex items-center justify-center text-black font-bold transition"
+                  title="Aumentar"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CategorySection({ categoria, productos }: CategorySectionProps) {
+  if (productos.length === 0) return null;
+
   return (
     <section id={categoria.slug} className="scroll-mt-28 py-6">
-      {/* 1. SECTION WOOD HEADER BADGE */}
+      {/* 1. SECTION WOOD HEADER BADGE (Sin enlaces dispersos de WhatsApp) */}
       <div className="flex flex-col items-center mb-5">
         <div className="relative px-8 py-2.5 rounded-2xl bg-gradient-to-b from-[#2a1708] via-[#190d04] to-[#0a0502] border-2 border-amber-600/60 shadow-2xl flex items-center gap-3">
           <div className="w-6 h-6 rounded-full border border-amber-400/40 p-0.5 flex items-center justify-center">
@@ -38,18 +189,9 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
           <h2 className="text-2xl sm:text-3xl font-black text-amber-100 tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
             {categoria.nombre}
           </h2>
-          <a
-            href="https://wa.me/56932553527"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-6 h-6 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center text-white shadow-md transition"
-            title="Pedir por WhatsApp"
-          >
-            <MessageCircle className="w-3.5 h-3.5 fill-white" />
-          </a>
         </div>
 
-        {/* 2. SECTION HERO CUTOUT IMAGE (Solo si fue subida por la web) */}
+        {/* 2. SECTION HERO CUTOUT IMAGE */}
         {categoria.imagen_url && categoria.imagen_url.trim() !== '' && (
           <div className="relative w-44 h-32 sm:w-52 sm:h-36 my-3 filter drop-shadow-[0_12px_16px_rgba(0,0,0,0.85)]">
             <Image
@@ -62,7 +204,7 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
           </div>
         )}
 
-        {/* Banner informativo de sección (ej: Sándwiches con papas) */}
+        {/* Banner informativo de sección */}
         {categoria.slug === 'sandwiches' && (
           <div className="mb-3 px-4 py-1.5 rounded-full bg-black/75 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-lg">
             🍟 Todos los Sándwich incluyen Deliciosas Papas Fritas
@@ -70,91 +212,11 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
         )}
       </div>
 
-      {/* 3. MENU ITEMS LIST (ESTILO CARTA CLÁSICA CON FRANJAS OSCURAS) */}
+      {/* 3. MENU ITEMS LIST */}
       <div className="space-y-3">
-        {productos.map((prod) => {
-          const mensajeWA = encodeURIComponent(
-            `Hola BillyBurger! Quiero pedir: ${prod.nombre} - ${formatoPrecio(prod.precio)}`
-          );
-
-          return (
-            <div
-              key={prod.id}
-              className={`relative overflow-hidden rounded-xl bg-black/80 hover:bg-black/90 backdrop-blur-sm border border-black/40 shadow-[0_4px_12px_rgba(0,0,0,0.7)] p-3 sm:p-4 transition-all ${
-                !prod.disponible ? 'opacity-50 grayscale' : ''
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                {/* Miniatura del producto (si tiene foto) */}
-                {prod.imagen_url && prod.imagen_url.trim() !== '' && (
-                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-black/40 border border-amber-500/20 overflow-hidden shrink-0 shadow-md">
-                    <Image
-                      src={prod.imagen_url}
-                      alt={prod.nombre}
-                      fill
-                      unoptimized
-                      className="object-cover hover:scale-110 transition-transform duration-300"
-                    />
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0">
-                  {/* Fila Principal: Nombre del Producto + Precio */}
-                  <div className="flex items-baseline justify-between gap-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-base sm:text-lg font-black text-white tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                        {prod.nombre}
-                      </h3>
-                      {prod.es_destacado && (
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500 text-black shadow">
-                          Favorito
-                        </span>
-                      )}
-                      {!prod.disponible && (
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-red-600 text-white">
-                          Agotado
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="text-base sm:text-xl font-black text-amber-400 font-mono tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-                        {formatoPrecio(prod.precio)}
-                      </span>
-                      {prod.precio_secundario && (
-                        <span className="text-[11px] block font-bold text-zinc-300">
-                          {prod.etiqueta_precio_secundario || 'Sin Papas'}: {formatoPrecio(prod.precio_secundario)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Fila Secundaria: Ingredientes en tipografía clara */}
-                  {prod.descripcion && (
-                    <p className="mt-1 text-xs sm:text-sm text-zinc-200 font-normal leading-relaxed tracking-wide">
-                      {prod.descripcion}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Botón sutil de pedido al tocar el plato */}
-              {prod.disponible && (
-                <div className="mt-2.5 pt-2 border-t border-white/10 flex justify-end">
-                  <a
-                    href={`https://wa.me/56932553527?text=${mensajeWA}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-bold transition shadow"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5 fill-white" />
-                    <span>Pedir este plato</span>
-                  </a>
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {productos.map((prod) => (
+          <ProductRow key={prod.id} prod={prod} />
+        ))}
       </div>
 
       {/* 4. ADICIONALES (EN SECCIONES CORRESPONDIENTES) */}
@@ -170,15 +232,6 @@ export function CategorySection({ categoria, productos }: CategorySectionProps) 
             <p className="text-xs font-bold text-white mt-1">
               🍟 Agrégale Deliciosas Papas Fritas: <span className="text-amber-400 font-mono">+$1.500</span>
             </p>
-          </div>
-
-          <div className="relative w-16 h-14 shrink-0 filter drop-shadow-md">
-            <Image
-              src="/images/papas-sticker.png"
-              alt="Papas Fritas"
-              fill
-              className="object-contain"
-            />
           </div>
         </div>
       )}
