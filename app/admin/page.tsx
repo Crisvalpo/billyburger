@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useMenuData } from '@/lib/store';
-import { Producto, Categoria, ConfiguracionHorario } from '@/lib/types';
+import { Producto, Categoria, ConfiguracionHorario, ConfiguracionTV } from '@/lib/types';
 import { AdminAuthLock } from '@/components/AdminAuthLock';
 import { HORARIO_DEFAULT, verificarEstadoHorario, getFechaHoraChile } from '@/lib/horario';
 import {
@@ -44,11 +44,13 @@ export default function AdminPage() {
     categorias,
     productos,
     configTV,
+    loading,
     updateCategoria,
     addCategoria,
     deleteCategoria,
     updateProducto,
     updateConfigTV,
+    updateAllConfigTV,
     addProducto,
     deleteProducto,
   } = useMenuData();
@@ -59,6 +61,27 @@ export default function AdminPage() {
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [editingCategoria, setEditingCategoria] = useState<any | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+
+  // Mapeo canónico de nombres de días con tildes correctas
+  const NOMBRES_DIAS_CORRECTOS: Record<number, string> = {
+    0: 'Domingo',
+    1: 'Lunes',
+    2: 'Martes',
+    3: 'Miércoles',
+    4: 'Jueves',
+    5: 'Viernes',
+    6: 'Sábado',
+  };
+
+  const ajustarHora = (horaActual: string, deltaMinutos: number): string => {
+    const [h, m] = (horaActual || '18:00').split(':').map((x) => parseInt(x, 10) || 0);
+    let total = (h * 60 + m + deltaMinutos) % (24 * 60);
+    if (total < 0) total += 24 * 60;
+    const nuevoH = Math.floor(total / 60);
+    const nuevoM = total % 60;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(nuevoH)}:${pad(nuevoM)}`;
+  };
 
   // Configuración de Horarios de Funcionamiento en Hora Chilena
   const [horarioConfig, setHorarioConfig] = useState<ConfiguracionHorario>(
@@ -94,23 +117,33 @@ export default function AdminPage() {
   }, [configTV]);
 
   const handleGuardarHorario = async (nuevaConf?: ConfiguracionHorario) => {
-    const confAGuardar = nuevaConf || horarioConfig;
+    const confBase = nuevaConf || horarioConfig;
+    const confAGuardar: ConfiguracionHorario = {
+      ...confBase,
+      dias: confBase.dias.map((d) => ({
+        ...d,
+        nombre: NOMBRES_DIAS_CORRECTOS[d.dia] || d.nombre,
+      })),
+    };
     try {
       setGuardandoHorario(true);
       setHorarioGuardadoExito(false);
 
-      if (configTV[0]) {
-        await updateConfigTV({
-          ...configTV[0],
-          horario_atencion: confAGuardar,
-        });
-      }
-      if (configTV[1]) {
-        await updateConfigTV({
-          ...configTV[1],
-          horario_atencion: confAGuardar,
-        });
-      }
+      const c1 = configTV.find((c) => c.pantalla_id === 1) || configTV[0] || {
+        pantalla_id: 1,
+        nombre: 'Pantalla 1 - Burgers & Papas Fritas',
+        segundos_rotacion: 12,
+      };
+      const c2 = configTV.find((c) => c.pantalla_id === 2) || configTV[1] || {
+        pantalla_id: 2,
+        nombre: 'Pantalla 2 - Chorrillanas & Sándwiches',
+        segundos_rotacion: 12,
+      };
+
+      await updateAllConfigTV([
+        { ...c1, horario_atencion: confAGuardar },
+        { ...c2, horario_atencion: confAGuardar },
+      ]);
 
       setHorarioGuardadoExito(true);
       setTimeout(() => setHorarioGuardadoExito(false), 3000);
@@ -139,38 +172,108 @@ export default function AdminPage() {
     });
   };
 
+  const handleAplicarPresetHorario = (tipo: 'habitual' | '2330' | '0030') => {
+    setHorarioConfig((prev) => {
+      const dias = prev.dias.map((d) => {
+        let apertura = '18:00';
+        let cierre = '23:30';
+        if (tipo === 'habitual') {
+          cierre = d.dia === 5 || d.dia === 6 ? '00:30' : '23:30';
+        } else if (tipo === '0030') {
+          cierre = '00:30';
+        }
+        return {
+          ...d,
+          nombre: NOMBRES_DIAS_CORRECTOS[d.dia] || d.nombre,
+          horaApertura: apertura,
+          horaCierre: cierre,
+        };
+      });
+      return { ...prev, dias };
+    });
+  };
+
   // Configuración y Gestión de Mensajes de la Guincha / Cintillo TV
-  const [mensajesGuincha, setMensajesGuincha] = useState<string[]>(
-    configTV[0]?.cintillo_mensajes || [
-      '🍔 ¡Pide tu combo con papas fritas crujientes!',
-      '🛵 Delivery y Retiro en Local disponible',
-      '🎉 Consulta por eventos y celebraciones al +56 9 3255 3527',
-      '⭐ Prueba nuestras Chorrillanas y Sándwiches artesanales',
-    ]
-  );
+  const [mensajesGuincha, setMensajesGuincha] = useState<string[]>([]);
   const [nuevoMensajeInput, setNuevoMensajeInput] = useState<string>('');
   const [whatsappInput, setWhatsappInput] = useState<string>('+56 9 3255 3527');
   const [guardandoGuincha, setGuardandoGuincha] = useState<boolean>(false);
   const [guinchaGuardadaExito, setGuinchaGuardadaExito] = useState<boolean>(false);
+  const guinchaIniciadaRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (configTV[0]?.cintillo_mensajes && configTV[0].cintillo_mensajes.length > 0) {
-      setMensajesGuincha(configTV[0].cintillo_mensajes);
+    if (configTV && configTV.length > 0) {
+      if (!guinchaIniciadaRef.current) {
+        if (configTV[0]?.cintillo_mensajes && configTV[0].cintillo_mensajes.length > 0) {
+          setMensajesGuincha(configTV[0].cintillo_mensajes);
+        } else if (configTV[0]?.cintillo_texto) {
+          setMensajesGuincha([configTV[0].cintillo_texto]);
+        }
+        if (configTV[0]?.telefono_whatsapp) {
+          setWhatsappInput(configTV[0].telefono_whatsapp);
+        }
+        if (!loading) {
+          guinchaIniciadaRef.current = true;
+        }
+      }
     }
-    if (configTV[0]?.telefono_whatsapp) {
-      setWhatsappInput(configTV[0].telefono_whatsapp);
-    }
-  }, [configTV]);
+  }, [configTV, loading]);
 
-  const handleAgregarMensajeGuincha = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!nuevoMensajeInput.trim()) return;
-    setMensajesGuincha((prev) => [...prev, nuevoMensajeInput.trim()]);
-    setNuevoMensajeInput('');
+  const guardarMensajesEnServidor = async (
+    mensajesAGuardar: string[],
+    whatsappAGuardar: string
+  ) => {
+    try {
+      setGuardandoGuincha(true);
+      setGuinchaGuardadaExito(false);
+
+      const tel = whatsappAGuardar.trim() || '+56 9 3255 3527';
+
+      // Sincronizar ambas pantallas en la base de datos (Pantalla 1 y 2)
+      const configsAGuardar: ConfiguracionTV[] = [1, 2].map((id) => {
+        const exist = configTV.find((c) => c.pantalla_id === id) || {
+          pantalla_id: id,
+          nombre: id === 1 ? 'Pantalla 1 - Burgers & Papas Fritas' : 'Pantalla 2 - Chorrillanas & Sándwiches',
+          segundos_rotacion: 12,
+          cintillo_texto: '',
+        };
+        return {
+          ...exist,
+          telefono_whatsapp: tel,
+          cintillo_mensajes: mensajesAGuardar,
+          cintillo_texto: mensajesAGuardar[0] || exist.cintillo_texto || '',
+        };
+      });
+
+      await updateAllConfigTV(configsAGuardar);
+
+      setGuinchaGuardadaExito(true);
+      setTimeout(() => setGuinchaGuardadaExito(false), 3000);
+    } catch (err: any) {
+      console.error('Error guardando mensajes de la guincha / WhatsApp:', err);
+      alert('Error guardando mensajes de la guincha / WhatsApp: ' + (err.message || err));
+    } finally {
+      setGuardandoGuincha(false);
+    }
   };
 
-  const handleEliminarMensajeGuincha = (index: number) => {
-    setMensajesGuincha((prev) => prev.filter((_, i) => i !== index));
+  const handleAgregarMensajeGuincha = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const texto = nuevoMensajeInput.trim();
+    if (!texto) return;
+
+    const nuevaLista = [...mensajesGuincha, texto];
+    setMensajesGuincha(nuevaLista);
+    setNuevoMensajeInput('');
+
+    // Auto-guardado instantáneo para que jamás desaparezca
+    await guardarMensajesEnServidor(nuevaLista, whatsappInput);
+  };
+
+  const handleEliminarMensajeGuincha = async (index: number) => {
+    const nuevaLista = mensajesGuincha.filter((_, i) => i !== index);
+    setMensajesGuincha(nuevaLista);
+    await guardarMensajesEnServidor(nuevaLista, whatsappInput);
   };
 
   const handleEditarMensajeGuincha = (index: number, nuevoTexto: string) => {
@@ -178,34 +281,7 @@ export default function AdminPage() {
   };
 
   const handleGuardarGuincha = async () => {
-    try {
-      setGuardandoGuincha(true);
-      setGuinchaGuardadaExito(false);
-
-      if (configTV[0]) {
-        await updateConfigTV({
-          ...configTV[0],
-          telefono_whatsapp: whatsappInput.trim(),
-          cintillo_mensajes: mensajesGuincha,
-          cintillo_texto: mensajesGuincha[0] || configTV[0].cintillo_texto,
-        });
-      }
-      if (configTV[1]) {
-        await updateConfigTV({
-          ...configTV[1],
-          telefono_whatsapp: whatsappInput.trim(),
-          cintillo_mensajes: mensajesGuincha,
-          cintillo_texto: mensajesGuincha[0] || configTV[1].cintillo_texto,
-        });
-      }
-
-      setGuinchaGuardadaExito(true);
-      setTimeout(() => setGuinchaGuardadaExito(false), 3000);
-    } catch (err: any) {
-      alert('Error guardando mensajes de la guincha: ' + err.message);
-    } finally {
-      setGuardandoGuincha(false);
-    }
+    await guardarMensajesEnServidor(mensajesGuincha, whatsappInput);
   };
 
   const fileInputEditRef = useRef<HTMLInputElement>(null);
@@ -883,8 +959,8 @@ export default function AdminPage() {
             </div>
 
             {/* Tabla de Días y Horas */}
-            <div className="p-5 rounded-3xl bg-[#12141c] border border-white/10 space-y-4 shadow-xl">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+            <div className="p-4 sm:p-5 rounded-3xl bg-[#12141c] border border-white/10 space-y-4 shadow-xl">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
                 <div>
                   <h4 className="text-sm font-black text-white">Días y Horarios de Atención</h4>
                   <p className="text-xs text-zinc-400 mt-0.5">
@@ -909,58 +985,143 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="divide-y divide-white/5">
+              {/* Botones de Presets Rápidos para Móvil y Desktop */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block w-full sm:w-auto">
+                  Presets Rápidos:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleAplicarPresetHorario('habitual')}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-amber-500 hover:text-black active:scale-95 text-xs text-amber-300 font-bold border border-white/10 transition"
+                >
+                  ⚡ Habitual (18:00 - 23:30 / Vie-Sáb 00:30)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAplicarPresetHorario('2330')}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs text-zinc-300 font-medium border border-white/10 transition"
+                >
+                  ⏰ Todos a 23:30
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAplicarPresetHorario('0030')}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs text-zinc-300 font-medium border border-white/10 transition"
+                >
+                  🌙 Todos a 00:30
+                </button>
+              </div>
+
+              <div className="divide-y divide-white/5 pt-2">
                 {horarioConfig.dias.map((d) => (
                   <div
                     key={d.dia}
-                    className={`py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition ${
+                    className={`py-3.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 transition ${
                       !d.abierto ? 'opacity-50' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-[140px]">
+                    {/* Switch / Toggle de Día */}
+                    <div className="flex items-center gap-3">
                       <button
                         type="button"
                         onClick={() => handleToggleDiaAbierto(d.dia)}
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center border font-bold text-xs transition ${
+                        className={`w-7 h-7 rounded-xl flex items-center justify-center border font-bold text-xs transition active:scale-90 ${
                           d.abierto
-                            ? 'bg-amber-500 border-amber-500 text-black shadow'
+                            ? 'bg-amber-500 border-amber-500 text-black shadow-md shadow-amber-500/20'
                             : 'bg-zinc-900 border-zinc-700 text-transparent'
                         }`}
+                        title="Activar o desactivar este día"
                       >
                         ✓
                       </button>
                       <div>
-                        <span className="font-bold text-sm text-white block">{d.nombre}</span>
-                        <span className="text-[10px] text-zinc-400">
-                          {d.abierto ? 'Abierto' : 'Cerrado'}
+                        <span className="font-black text-sm text-white block">
+                          {NOMBRES_DIAS_CORRECTOS[d.dia] || d.nombre}
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-medium">
+                          {d.abierto ? 'Atiende este día' : 'Cerrado este día'}
                         </span>
                       </div>
                     </div>
 
+                    {/* Controles de Hora Táctiles para Móvil */}
                     {d.abierto ? (
-                      <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-zinc-400 font-medium">Abre:</span>
+                      <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full lg:w-auto">
+                        {/* Apertura */}
+                        <div className="bg-black/60 p-2 sm:p-2.5 rounded-2xl border border-white/10 flex flex-col gap-1.5 shadow-inner">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-zinc-400">Abre:</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCambiarHoraDia(d.dia, 'horaApertura', ajustarHora(d.horaApertura, -30))
+                                }
+                                className="px-1.5 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-[10px] text-zinc-300 font-mono font-bold border border-white/10"
+                                title="Restar 30m"
+                              >
+                                -30m
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCambiarHoraDia(d.dia, 'horaApertura', ajustarHora(d.horaApertura, 30))
+                                }
+                                className="px-1.5 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-[10px] text-zinc-300 font-mono font-bold border border-white/10"
+                                title="Sumar 30m"
+                              >
+                                +30m
+                              </button>
+                            </div>
+                          </div>
                           <input
                             type="time"
                             value={d.horaApertura}
                             onChange={(e) => handleCambiarHoraDia(d.dia, 'horaApertura', e.target.value)}
-                            className="bg-black/60 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-amber-300 font-mono font-bold focus:border-amber-500 focus:outline-none"
+                            className="w-full bg-zinc-900 border border-white/20 rounded-xl px-2.5 py-2 text-sm sm:text-base text-amber-300 font-mono font-bold focus:border-amber-500 focus:outline-none min-h-[44px] [color-scheme:dark] text-center"
                           />
                         </div>
-                        <span className="text-zinc-500 font-bold">-</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-zinc-400 font-medium">Cierra:</span>
+
+                        {/* Cierre */}
+                        <div className="bg-black/60 p-2 sm:p-2.5 rounded-2xl border border-white/10 flex flex-col gap-1.5 shadow-inner">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-zinc-400">Cierra:</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCambiarHoraDia(d.dia, 'horaCierre', ajustarHora(d.horaCierre, -30))
+                                }
+                                className="px-1.5 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-[10px] text-zinc-300 font-mono font-bold border border-white/10"
+                                title="Restar 30m"
+                              >
+                                -30m
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCambiarHoraDia(d.dia, 'horaCierre', ajustarHora(d.horaCierre, 30))
+                                }
+                                className="px-1.5 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-[10px] text-zinc-300 font-mono font-bold border border-white/10"
+                                title="Sumar 30m"
+                              >
+                                +30m
+                              </button>
+                            </div>
+                          </div>
                           <input
                             type="time"
                             value={d.horaCierre}
                             onChange={(e) => handleCambiarHoraDia(d.dia, 'horaCierre', e.target.value)}
-                            className="bg-black/60 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-amber-300 font-mono font-bold focus:border-amber-500 focus:outline-none"
+                            className="w-full bg-zinc-900 border border-white/20 rounded-xl px-2.5 py-2 text-sm sm:text-base text-amber-300 font-mono font-bold focus:border-amber-500 focus:outline-none min-h-[44px] [color-scheme:dark] text-center"
                           />
                         </div>
                       </div>
                     ) : (
-                      <span className="text-xs text-zinc-500 italic">No atiende este día</span>
+                      <div className="py-2 text-xs text-zinc-500 italic bg-black/30 px-3 rounded-xl border border-white/5">
+                        Local cerrado este día
+                      </div>
                     )}
                   </div>
                 ))}
@@ -1068,18 +1229,39 @@ export default function AdminPage() {
                 <label className="text-xs font-bold text-amber-300 block mb-1.5">
                   Teléfono / WhatsApp del Local:
                 </label>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <input
                     type="text"
                     value={whatsappInput}
                     onChange={(e) => setWhatsappInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        guardarMensajesEnServidor(mensajesGuincha, whatsappInput);
+                      }
+                    }}
                     placeholder="+56 9 3255 3527"
                     className="flex-1 px-4 py-2.5 bg-black/70 border border-white/10 rounded-xl text-sm text-white font-mono font-bold focus:border-amber-500 focus:outline-none"
                   />
-                  <span className="text-xs text-zinc-400 hidden sm:inline">
-                    (Ej: +56 9 3255 3527)
-                  </span>
+                  <button
+                    type="button"
+                    disabled={guardandoGuincha}
+                    onClick={() => guardarMensajesEnServidor(mensajesGuincha, whatsappInput)}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 shadow-md shadow-emerald-900/30"
+                  >
+                    {guardandoGuincha ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : guinchaGuardadaExito ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    <span>{guinchaGuardadaExito ? '¡Guardado!' : 'Guardar WhatsApp'}</span>
+                  </button>
                 </div>
+                <span className="text-xs text-zinc-400 mt-1 block">
+                  Presiona Enter o haz clic en Guardar WhatsApp para aplicarlo en Web y TV.
+                </span>
               </div>
             </div>
 

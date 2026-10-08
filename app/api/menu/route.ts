@@ -165,13 +165,44 @@ export async function POST(req: NextRequest) {
       }
 
       case 'updateConfigTV': {
+        const payload = { ...data };
+        delete payload.id;
+        delete payload.created_at;
+        payload.actualizado_el = new Date().toISOString();
+
         const { data: updated, error } = await supabaseAdmin
           .from('configuracion_tv')
-          .update(data)
-          .eq('pantalla_id', data.pantalla_id)
+          .update(payload)
+          .eq('pantalla_id', payload.pantalla_id)
           .select();
-        if (error) throw error;
+        if (error) {
+          console.error('Error in updateConfigTV:', error);
+          throw error;
+        }
         return NextResponse.json({ success: true, data: updated });
+      }
+
+      case 'updateAllConfigTV': {
+        const list = Array.isArray(data) ? data : [data];
+        const results = [];
+        for (const item of list) {
+          const payload = { ...item };
+          delete payload.id;
+          delete payload.created_at;
+          payload.actualizado_el = new Date().toISOString();
+
+          const { data: updated, error } = await supabaseAdmin
+            .from('configuracion_tv')
+            .update(payload)
+            .eq('pantalla_id', payload.pantalla_id)
+            .select();
+          if (error) {
+            console.error('Error in updateAllConfigTV:', error);
+            throw error;
+          }
+          if (updated) results.push(...updated);
+        }
+        return NextResponse.json({ success: true, data: results });
       }
 
       default:

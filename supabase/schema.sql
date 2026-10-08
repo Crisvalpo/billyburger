@@ -55,6 +55,11 @@ CREATE TABLE IF NOT EXISTS billy.configuracion_tv (
     nombre TEXT NOT NULL,
     segundos_rotacion INT DEFAULT 12,
     cintillo_texto TEXT DEFAULT '¡Haz tu pedido en caja o vía WhatsApp al +56 9 3255 3527!',
+    cintillo_mensajes JSONB DEFAULT '[]'::jsonb,
+    portada_url TEXT,
+    precio_papas_combo INT DEFAULT 1500,
+    horario_atencion JSONB,
+    telefono_whatsapp TEXT DEFAULT '+56 9 3255 3527',
     actualizado_el TIMESTAMPTZ DEFAULT now()
 );
 

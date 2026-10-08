@@ -319,27 +319,33 @@ export function useMenuData() {
   };
 
   const updateConfigTV = async (configActualizada: ConfiguracionTV) => {
-    setConfigTV((prev) =>
-      prev.map((c) =>
-        c.pantalla_id === configActualizada.pantalla_id ? configActualizada : c
-      )
-    );
-    if (typeof window !== 'undefined') {
-      const items = configTV.map((c) =>
+    setConfigTV((prev) => {
+      const items = prev.map((c) =>
         c.pantalla_id === configActualizada.pantalla_id ? configActualizada : c
       );
-      localStorage.setItem(STORAGE_KEYS.CONFIG_TV, JSON.stringify(items));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.CONFIG_TV, JSON.stringify(items));
+      }
+      return items;
+    });
+
+    if (typeof window !== 'undefined') {
       bc?.postMessage({ type: 'UPDATE_ALL' });
     }
 
     try {
-      await fetch('/api/menu', {
+      const res = await fetch('/api/menu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'updateConfigTV', data: configActualizada }),
       });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Error al actualizar configuración en servidor');
+      }
     } catch (e) {
       console.warn('Error saving configTV via /api/menu:', e);
+      throw e;
     }
 
     if (isSupabaseConfigured && supabase) {
@@ -347,6 +353,47 @@ export function useMenuData() {
         .from('configuracion_tv')
         .update(configActualizada)
         .eq('pantalla_id', configActualizada.pantalla_id);
+    }
+  };
+
+  const updateAllConfigTV = async (configsActualizadas: ConfiguracionTV[]) => {
+    setConfigTV((prev) => {
+      const items = prev.map((c) => {
+        const match = configsActualizadas.find((u) => u.pantalla_id === c.pantalla_id);
+        return match || c;
+      });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.CONFIG_TV, JSON.stringify(items));
+      }
+      return items;
+    });
+
+    if (typeof window !== 'undefined') {
+      bc?.postMessage({ type: 'UPDATE_ALL' });
+    }
+
+    try {
+      const res = await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateAllConfigTV', data: configsActualizadas }),
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Error al guardar configuraciones TV en servidor');
+      }
+    } catch (e) {
+      console.warn('Error saving all configTV via /api/menu:', e);
+      throw e;
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      for (const conf of configsActualizadas) {
+        await supabase
+          .from('configuracion_tv')
+          .update(conf)
+          .eq('pantalla_id', conf.pantalla_id);
+      }
     }
   };
 
@@ -361,6 +408,7 @@ export function useMenuData() {
     deleteCategoria,
     updateProducto,
     updateConfigTV,
+    updateAllConfigTV,
     addProducto,
     deleteProducto,
   };
