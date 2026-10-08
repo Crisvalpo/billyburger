@@ -660,6 +660,8 @@ export const EVENTOS_INICIALES: Evento[] = [
   },
 ];
 
+import { HORARIO_DEFAULT } from './horario';
+
 export const CONFIG_TV_INICIAL: ConfiguracionTV[] = [
   {
     pantalla_id: 1,
@@ -667,6 +669,7 @@ export const CONFIG_TV_INICIAL: ConfiguracionTV[] = [
     segundos_rotacion: 12,
     cintillo_texto: '🔥 ¡Bienvenido a Billy Burger! Pide en caja o al WhatsApp +56 9 3255 3527 • Todas las burgers y sándwiches incluyen crujientes papas fritas',
     precio_papas_combo: 1500,
+    horario_atencion: HORARIO_DEFAULT,
   },
   {
     pantalla_id: 2,
@@ -674,6 +677,8 @@ export const CONFIG_TV_INICIAL: ConfiguracionTV[] = [
     segundos_rotacion: 12,
     cintillo_texto: '🔥 Prueba nuestras Chorrillanas y Sándwiches XL • Eventos y celebraciones a pedido al +56 9 3255 3527',
     precio_papas_combo: 1500,
+    horario_atencion: HORARIO_DEFAULT,
   },
 ];
+
 

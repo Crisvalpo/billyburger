@@ -4,8 +4,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useMenuData } from '@/lib/store';
-import { Producto } from '@/lib/types';
+import { Producto, ConfiguracionHorario } from '@/lib/types';
 import { AdminAuthLock } from '@/components/AdminAuthLock';
+import { HORARIO_DEFAULT, verificarEstadoHorario, getFechaHoraChile } from '@/lib/horario';
 import {
   Plus,
   Tv,
@@ -21,6 +22,7 @@ import {
   Upload,
   Loader2,
   Lock,
+  Clock,
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -49,12 +51,91 @@ export default function AdminPage() {
     resetToDefaults,
   } = useMenuData();
 
-  const [activeTab, setActiveTab] = useState<'productos' | 'secciones' | 'portada'>('productos');
+  const [activeTab, setActiveTab] = useState<'productos' | 'secciones' | 'portada' | 'horarios'>('productos');
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [editingCategoria, setEditingCategoria] = useState<any | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+
+  // Configuración de Horarios de Funcionamiento en Hora Chilena
+  const [horarioConfig, setHorarioConfig] = useState<ConfiguracionHorario>(
+    configTV[0]?.horario_atencion || HORARIO_DEFAULT
+  );
+  const [guardandoHorario, setGuardandoHorario] = useState<boolean>(false);
+  const [horarioGuardadoExito, setHorarioGuardadoExito] = useState<boolean>(false);
+  const [horaChileActual, setHoraChileActual] = useState<{ horaStr: string; diaNombre: string; fechaStr: string }>({
+    horaStr: '',
+    diaNombre: '',
+    fechaStr: '',
+  });
+
+  // Reloj en vivo de Santiago de Chile
+  useEffect(() => {
+    const updateReloj = () => {
+      const ch = getFechaHoraChile();
+      setHoraChileActual({
+        horaStr: ch.horaStr,
+        diaNombre: ch.diaNombre,
+        fechaStr: ch.fechaStr,
+      });
+    };
+    updateReloj();
+    const interval = setInterval(updateReloj, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (configTV[0]?.horario_atencion) {
+      setHorarioConfig(configTV[0].horario_atencion);
+    }
+  }, [configTV]);
+
+  const handleGuardarHorario = async (nuevaConf?: ConfiguracionHorario) => {
+    const confAGuardar = nuevaConf || horarioConfig;
+    try {
+      setGuardandoHorario(true);
+      setHorarioGuardadoExito(false);
+
+      if (configTV[0]) {
+        await updateConfigTV({
+          ...configTV[0],
+          horario_atencion: confAGuardar,
+        });
+      }
+      if (configTV[1]) {
+        await updateConfigTV({
+          ...configTV[1],
+          horario_atencion: confAGuardar,
+        });
+      }
+
+      setHorarioGuardadoExito(true);
+      setTimeout(() => setHorarioGuardadoExito(false), 3000);
+    } catch (err: any) {
+      alert('Error guardando horario: ' + err.message);
+    } finally {
+      setGuardandoHorario(false);
+    }
+  };
+
+  const handleToggleDiaAbierto = (diaIndex: number) => {
+    setHorarioConfig((prev) => {
+      const dias = prev.dias.map((d) =>
+        d.dia === diaIndex ? { ...d, abierto: !d.abierto } : d
+      );
+      return { ...prev, dias };
+    });
+  };
+
+  const handleCambiarHoraDia = (diaIndex: number, campo: 'horaApertura' | 'horaCierre', valor: string) => {
+    setHorarioConfig((prev) => {
+      const dias = prev.dias.map((d) =>
+        d.dia === diaIndex ? { ...d, [campo]: valor } : d
+      );
+      return { ...prev, dias };
+    });
+  };
 
   const fileInputEditRef = useRef<HTMLInputElement>(null);
   const fileInputNewRef = useRef<HTMLInputElement>(null);
@@ -505,9 +586,239 @@ export default function AdminPage() {
           >
             ⭐ Portada & Ajustes Menú
           </button>
+          <button
+            onClick={() => setActiveTab('horarios')}
+            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition ${
+              activeTab === 'horarios'
+                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            ⏰ Horarios de Atención
+          </button>
         </div>
 
-        {activeTab === 'portada' ? (
+        {activeTab === 'horarios' ? (
+          <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-200">
+            {/* Header Reloj Chile y Estado en Vivo */}
+            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-[#17130b] via-[#12141c] to-[#12141c] border border-amber-500/30 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
+                  Hora Oficial de Chile (Santiago)
+                </span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl sm:text-4xl font-black font-mono text-white tracking-tight">
+                    {horaChileActual.horaStr || '--:--'}
+                  </span>
+                  <span className="text-sm font-bold text-zinc-400">
+                    {horaChileActual.diaNombre} {horaChileActual.fechaStr ? `(${horaChileActual.fechaStr})` : ''}
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400 mt-1">
+                  El bloqueo de pedidos se calcula en tiempo real con este reloj chileno.
+                </p>
+              </div>
+
+              {/* Badge de Estado en Vivo */}
+              <div className="shrink-0 w-full sm:w-auto">
+                {(() => {
+                  const est = verificarEstadoHorario(horarioConfig);
+                  return est.estaAbierto ? (
+                    <div className="px-4 py-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 flex items-center gap-2.5 shadow-lg">
+                      <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider block">Local Abierto Ahora</span>
+                        <span className="text-[11px] text-emerald-200 font-medium">{est.motivo}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-2.5 rounded-2xl bg-red-500/20 border border-red-500/40 text-red-300 flex items-center gap-2.5 shadow-lg">
+                      <span className="w-3 h-3 rounded-full bg-red-400 animate-pulse shrink-0" />
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider block">Local Cerrado Ahora</span>
+                        <span className="text-[11px] text-red-200 font-medium">
+                          {est.proximaApertura ? `Abre: ${est.proximaApertura}` : est.motivo}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Selector de Modo Maestro */}
+            <div className="p-5 rounded-3xl bg-[#12141c] border border-white/10 space-y-3 shadow-xl">
+              <label className="text-xs font-black text-amber-300 uppercase tracking-wider block">
+                Modo de Operación del Local:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setHorarioConfig({ ...horarioConfig, modoForzado: 'auto' })}
+                  className={`p-3.5 rounded-2xl border text-left transition ${
+                    (horarioConfig.modoForzado || 'auto') === 'auto'
+                      ? 'bg-amber-500/20 border-amber-500 text-white shadow-md'
+                      : 'bg-black/40 border-white/5 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-black block">⚙️ Automático</span>
+                  <span className="text-[11px] text-zinc-400 mt-1 block leading-relaxed">
+                    Abre y cierra automáticamente según el horario programado.
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHorarioConfig({ ...horarioConfig, modoForzado: 'abierto' })}
+                  className={`p-3.5 rounded-2xl border text-left transition ${
+                    horarioConfig.modoForzado === 'abierto'
+                      ? 'bg-emerald-500/20 border-emerald-500 text-white shadow-md'
+                      : 'bg-black/40 border-white/5 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-black block text-emerald-400">🟢 Forzar Abierto</span>
+                  <span className="text-[11px] text-zinc-400 mt-1 block leading-relaxed">
+                    Permite tomar pedidos de inmediato ignorando el reloj.
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHorarioConfig({ ...horarioConfig, modoForzado: 'cerrado' })}
+                  className={`p-3.5 rounded-2xl border text-left transition ${
+                    horarioConfig.modoForzado === 'cerrado'
+                      ? 'bg-red-500/20 border-red-500 text-white shadow-md'
+                      : 'bg-black/40 border-white/5 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-black block text-red-400">🔴 Forzar Cerrado</span>
+                  <span className="text-[11px] text-zinc-400 mt-1 block leading-relaxed">
+                    Bloquea pedidos ahora mismo (imprevisto, lluvia, feriado).
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Tabla de Días y Horas */}
+            <div className="p-5 rounded-3xl bg-[#12141c] border border-white/10 space-y-4 shadow-xl">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+                <div>
+                  <h4 className="text-sm font-black text-white">Días y Horarios de Atención</h4>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Activa qué días atiende el local y define la hora de inicio y término.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-zinc-400">Validación de Horarios:</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setHorarioConfig({ ...horarioConfig, habilitado: !horarioConfig.habilitado })
+                    }
+                    className={`px-3 py-1 rounded-full text-xs font-black transition ${
+                      horarioConfig.habilitado
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'bg-zinc-800 text-zinc-400 border border-white/10'
+                    }`}
+                  >
+                    {horarioConfig.habilitado ? 'ACTIVA' : 'PAUSADA'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="divide-y divide-white/5">
+                {horarioConfig.dias.map((d) => (
+                  <div
+                    key={d.dia}
+                    className={`py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition ${
+                      !d.abierto ? 'opacity-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-[140px]">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleDiaAbierto(d.dia)}
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center border font-bold text-xs transition ${
+                          d.abierto
+                            ? 'bg-amber-500 border-amber-500 text-black shadow'
+                            : 'bg-zinc-900 border-zinc-700 text-transparent'
+                        }`}
+                      >
+                        ✓
+                      </button>
+                      <div>
+                        <span className="font-bold text-sm text-white block">{d.nombre}</span>
+                        <span className="text-[10px] text-zinc-400">
+                          {d.abierto ? 'Abierto' : 'Cerrado'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {d.abierto ? (
+                      <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-zinc-400 font-medium">Abre:</span>
+                          <input
+                            type="time"
+                            value={d.horaApertura}
+                            onChange={(e) => handleCambiarHoraDia(d.dia, 'horaApertura', e.target.value)}
+                            className="bg-black/60 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-amber-300 font-mono font-bold focus:border-amber-500 focus:outline-none"
+                          />
+                        </div>
+                        <span className="text-zinc-500 font-bold">-</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-zinc-400 font-medium">Cierra:</span>
+                          <input
+                            type="time"
+                            value={d.horaCierre}
+                            onChange={(e) => handleCambiarHoraDia(d.dia, 'horaCierre', e.target.value)}
+                            className="bg-black/60 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-amber-300 font-mono font-bold focus:border-amber-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-zinc-500 italic">No atiende este día</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Mensaje Personalizado para Clientes */}
+            <div className="p-5 rounded-3xl bg-[#12141c] border border-white/10 space-y-2 shadow-xl">
+              <label className="text-xs font-black text-amber-300 uppercase tracking-wider block">
+                Mensaje de Aviso cuando el Local esté Cerrado:
+              </label>
+              <textarea
+                rows={2}
+                value={horarioConfig.mensajeCerrado || ''}
+                onChange={(e) => setHorarioConfig({ ...horarioConfig, mensajeCerrado: e.target.value })}
+                placeholder="Ej: Local cerrado en este momento. Revisa nuestros horarios de atención."
+                className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-xs text-white placeholder-zinc-500 focus:border-amber-500 focus:outline-none resize-none"
+              />
+              <p className="text-[11px] text-zinc-500">
+                Este mensaje se mostrará a los clientes en la parte superior y en el carrito cuando no puedan pedir.
+              </p>
+            </div>
+
+            {/* Botón Guardar Horario */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={guardandoHorario}
+                onClick={() => handleGuardarHorario()}
+                className="w-full sm:w-auto px-6 py-3 bg-amber-500 hover:bg-amber-400 active:scale-95 text-black font-extrabold text-sm uppercase tracking-wider rounded-2xl transition flex items-center justify-center gap-2 shadow-xl shadow-amber-500/20 disabled:opacity-50"
+              >
+                {guardandoHorario ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : horarioGuardadoExito ? (
+                  <CheckCircle2 className="w-4 h-4" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                <span>{horarioGuardadoExito ? '¡Horarios Guardados con Éxito!' : 'Guardar Horarios de Atención'}</span>
+              </button>
+            </div>
+          </div>
+        ) : activeTab === 'portada' ? (
           <div className="max-w-xl mx-auto space-y-6">
             {/* Card: Configuración Global de Opciones de Papas Fritas */}
             <div className="p-5 rounded-3xl bg-[#12141c] border border-amber-500/40 shadow-2xl">

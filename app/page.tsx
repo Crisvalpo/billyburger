@@ -10,6 +10,8 @@ import { OrderDrawer } from '@/components/OrderDrawer';
 import { CartProvider } from '@/components/CartContext';
 import { Footer } from '@/components/Footer';
 import { BillyLoader } from '@/components/BillyLoader';
+import { verificarEstadoHorario } from '@/lib/horario';
+import { Clock } from 'lucide-react';
 
 function MainMenuContent() {
   const { categorias, productos, configTV, loading } = useMenuData();
@@ -34,6 +36,7 @@ function MainMenuContent() {
   }
 
   const portadaUrl = configTV[0]?.portada_url || '';
+  const estadoHorario = verificarEstadoHorario(configTV[0]?.horario_atencion);
 
   return (
     <div className="min-h-screen text-zinc-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
@@ -43,6 +46,25 @@ function MainMenuContent() {
         categoriaActiva={categoriaActiva}
         onSelectCategoria={handleSelectCategoria}
       />
+
+      {/* Banner de Aviso cuando el Local está Cerrado en Hora Chilena */}
+      {!estadoHorario.estaAbierto && (
+        <div className="bg-gradient-to-r from-red-950 via-red-900 to-red-950 border-b border-red-500/40 px-4 py-2.5 text-center shadow-xl">
+          <div className="max-w-xl mx-auto flex items-center justify-center gap-2.5 text-white">
+            <Clock className="w-4 h-4 text-red-300 animate-pulse shrink-0" />
+            <div className="text-left sm:text-center">
+              <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-red-100 block sm:inline">
+                Local Cerrado en este momento:{' '}
+              </span>
+              <span className="text-[11px] sm:text-xs text-red-200">
+                {estadoHorario.mensajePersonalizado || estadoHorario.horarioHoyTexto}.{' '}
+                {estadoHorario.proximaApertura ? `Próxima apertura: ${estadoHorario.proximaApertura}.` : ''}{' '}
+                (Carta solo para consulta).
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Container - Ancho completo con encabezados full-width */}
       <main className="flex-1 w-full mx-auto pb-24">
@@ -63,13 +85,17 @@ function MainMenuContent() {
                 categoria={cat}
                 productos={prodsDeCategoria}
                 precioPapasCombo={configTV[0]?.precio_papas_combo || 1500}
+                localAbierto={estadoHorario.estaAbierto}
               />
             );
           })}
       </main>
 
       {/* Drawer modal de revisión de pedido */}
-      <OrderDrawer />
+      <OrderDrawer
+        localAbierto={estadoHorario.estaAbierto}
+        mensajeCerrado={estadoHorario.mensajePersonalizado || estadoHorario.horarioHoyTexto}
+      />
 
       {/* Barra o botón flotante inteligente */}
       <CartFloatingBar />

@@ -4,22 +4,25 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { Producto, Categoria } from '@/lib/types';
 import { useCart } from './CartContext';
-import { Plus, Minus, ShoppingBag } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, Clock } from 'lucide-react';
 
 interface CategorySectionProps {
   categoria: Categoria;
   productos: Producto[];
   precioPapasCombo?: number;
+  localAbierto?: boolean;
 }
 
 function ProductRow({
   prod,
   categoriaSlug,
   precioPapasCombo = 1500,
+  localAbierto = true,
 }: {
   prod: Producto;
   categoriaSlug?: string;
   precioPapasCombo?: number;
+  localAbierto?: boolean;
 }) {
   const { addItem, removeItem, getItemQuantity } = useCart();
 
@@ -164,7 +167,15 @@ function ProductRow({
           </div>
 
           <div className="flex items-center gap-2">
-            {cantidad === 0 ? (
+            {!localAbierto ? (
+              <div
+                className="px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-red-500/30 text-zinc-400 font-bold text-xs flex items-center gap-1.5 shadow select-none cursor-not-allowed"
+                title="El local se encuentra cerrado en este momento"
+              >
+                <Clock className="w-3.5 h-3.5 text-red-400" />
+                <span className="text-red-300 font-semibold text-[11px]">Local Cerrado</span>
+              </div>
+            ) : cantidad === 0 ? (
               <button
                 type="button"
                 onClick={() => addItem(prod, opcionNombre, precioActual)}
@@ -207,6 +218,7 @@ export function CategorySection({
   categoria,
   productos,
   precioPapasCombo = 1500,
+  localAbierto = true,
 }: CategorySectionProps) {
   if (productos.length === 0) return null;
 
@@ -262,6 +274,7 @@ export function CategorySection({
               prod={prod}
               categoriaSlug={categoria.slug}
               precioPapasCombo={precioPapasCombo}
+              localAbierto={localAbierto}
             />
           ))}
         </div>

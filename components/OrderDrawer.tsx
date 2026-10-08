@@ -3,9 +3,14 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useCart } from './CartContext';
-import { X, Trash2, Plus, Minus, MessageCircle, ShoppingBag, ArrowRight } from 'lucide-react';
+import { X, Trash2, Plus, Minus, MessageCircle, ShoppingBag, ArrowRight, Clock } from 'lucide-react';
 
-export function OrderDrawer() {
+interface OrderDrawerProps {
+  localAbierto?: boolean;
+  mensajeCerrado?: string;
+}
+
+export function OrderDrawer({ localAbierto = true, mensajeCerrado }: OrderDrawerProps) {
   const { items, isOpen, setIsOpen, updateQuantity, removeItem, clearCart, totalItems, totalPrecio } = useCart();
   const [notas, setNotas] = useState('');
   const [nombreCliente, setNombreCliente] = useState('');
@@ -195,6 +200,18 @@ export function OrderDrawer() {
               </span>
             </div>
 
+            {!localAbierto && (
+              <div className="p-3 rounded-2xl bg-red-950/80 border border-red-500/40 text-center">
+                <p className="text-xs font-black text-red-200 flex items-center justify-center gap-1.5 uppercase tracking-wide">
+                  <Clock className="w-4 h-4 text-red-400" />
+                  <span>Local Fuera de Horario</span>
+                </p>
+                <p className="text-[11px] text-red-300 mt-1">
+                  {mensajeCerrado || 'En este momento no estamos recibiendo pedidos por WhatsApp. Revisa nuestros horarios de atención.'}
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <button
                 onClick={clearCart}
@@ -205,14 +222,25 @@ export function OrderDrawer() {
                 <span className="hidden sm:inline">Vaciar</span>
               </button>
 
-              <button
-                onClick={handleEnviarPedido}
-                className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-emerald-950/60 transition active:scale-98"
-              >
-                <MessageCircle className="w-5 h-5 fill-white" />
-                <span>Confirmar por WhatsApp</span>
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </button>
+              {!localAbierto ? (
+                <button
+                  type="button"
+                  disabled
+                  className="flex-1 py-3 px-4 rounded-2xl bg-zinc-900 border border-red-500/30 text-zinc-400 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed shadow"
+                >
+                  <Clock className="w-4 h-4 text-red-400" />
+                  <span>Local Cerrado</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleEnviarPedido}
+                  className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-emerald-950/60 transition active:scale-98"
+                >
+                  <MessageCircle className="w-5 h-5 fill-white" />
+                  <span>Confirmar por WhatsApp</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </button>
+              )}
             </div>
           </div>
         )}

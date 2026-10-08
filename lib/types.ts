@@ -35,6 +35,21 @@ export interface Evento {
   orden: number;
 }
 
+export interface HorarioDia {
+  dia: number; // 0: Domingo, 1: Lunes, 2: Martes, 3: Miércoles, 4: Jueves, 5: Viernes, 6: Sábado
+  nombre: string;
+  abierto: boolean;
+  horaApertura: string; // '18:00'
+  horaCierre: string; // '23:30' o '01:00'
+}
+
+export interface ConfiguracionHorario {
+  habilitado: boolean;
+  modoForzado?: 'auto' | 'abierto' | 'cerrado';
+  mensajeCerrado?: string;
+  dias: HorarioDia[];
+}
+
 export interface ConfiguracionTV {
   pantalla_id: number;
   nombre: string;
@@ -42,5 +57,7 @@ export interface ConfiguracionTV {
   cintillo_texto: string;
   portada_url?: string;
   precio_papas_combo?: number;
+  horario_atencion?: ConfiguracionHorario;
 }
+
 
