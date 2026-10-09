@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useMenuData } from '@/lib/store';
 import { Producto, Categoria } from '@/lib/types';
-import { Maximize2, MapPin, Clock, Phone } from 'lucide-react';
+import { Maximize2, MapPin, Phone } from 'lucide-react';
 import { BillyLoader } from '@/components/BillyLoader';
 import { getWhatsAppDisplay } from '@/lib/whatsapp';
 
@@ -199,6 +199,100 @@ function TVMenuboardContent() {
       'Retiro en Local & Delivery Curauma',
     ];
   }, [currentConfig, whatsappDisplay]);
+
+  // Renderizador limpio y unificado de tarjeta de producto secundario (con o sin imagen)
+  const renderSecondaryCard = (prod: Producto | undefined, fallbackPromo: React.ReactNode) => {
+    if (!prod) return fallbackPromo;
+
+    return (
+      <div className="flex-1 min-h-0 rounded-2xl md:rounded-3xl p-[clamp(14px,1.8vw,24px)] shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between relative overflow-hidden group">
+        {/* Fondo de madera con toque oscuro elegante */}
+        <div
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-102"
+          style={{
+            backgroundImage: "url('/images/madera-bg.jpg')",
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0d0906]/95 via-[#140c08]/90 to-[#0e0a07]/85 pointer-events-none" />
+
+        {/* 1. Header de la tarjeta: Badge de Categoría y Destacado */}
+        <div className="flex items-center justify-between gap-3 shrink-0 z-10">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 md:py-1 rounded-full bg-[#0e0a07]/80 backdrop-blur-sm text-amber-400 font-montserrat text-[clamp(10px,0.85vw,11px)] font-black uppercase tracking-wider border border-amber-500/20">
+              {activeCategory?.nombre}
+            </span>
+            {prod.es_destacado && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-200 text-[clamp(10px,0.85vw,11px)] font-black uppercase tracking-wider backdrop-blur-sm">
+                ⭐ Destacado
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* 2. Cuerpo Principal: Título, Precio y Descripción UNIFICADOS */}
+        <div className="my-auto z-10 py-1 flex items-center gap-[clamp(12px,1.8vw,22px)]">
+          {/* Si TIENE imagen */}
+          {prod.imagen_url && (
+            <div className="relative w-[clamp(75px,9.5vw,120px)] h-[clamp(75px,9.5vw,120px)] rounded-xl md:rounded-2xl overflow-hidden shrink-0 bg-[#0e0a07]/80 flex items-center justify-center border border-white/5 shadow-md">
+              <Image
+                src={prod.imagen_url}
+                alt={prod.nombre}
+                fill
+                sizes="(max-width: 768px) 80px, 120px"
+                className="object-contain p-1.5 filter drop-shadow-md z-10"
+              />
+            </div>
+          )}
+
+          {/* Bloque de Información: Título a la izquierda, Precio a la derecha AL MISMO NIVEL */}
+          <div className="flex-1 min-w-0 flex flex-col justify-center gap-2">
+            {/* FILA 1: Nombre del producto + Precio principal juntos */}
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-montserrat font-black text-[clamp(1.2rem,2vw,2.1rem)] text-[#fff9f2] uppercase tracking-tight leading-tight drop-shadow-sm flex-1 min-w-0 pr-2">
+                {prod.nombre}
+              </h3>
+
+              {/* Precio Principal */}
+              <div className="text-right shrink-0">
+                <span className="text-[clamp(9px,0.7vw,10px)] font-black uppercase tracking-widest text-[#a89685] block leading-none mb-1">
+                  PRECIO
+                </span>
+                <span className="font-mono-price font-black text-[clamp(1.6rem,2.5vw,2.7rem)] text-amber-400 tracking-tight leading-none drop-shadow">
+                  {formatoPrecio(prod.precio)}
+                </span>
+              </div>
+            </div>
+
+            {/* FILA 2: Descripción e Ingredientes + Opción Secundaria (ej: Sin Papas) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              {prod.descripcion && (
+                <div className="flex-1 bg-[#0e0a07]/85 backdrop-blur-md px-3.5 py-1.5 md:py-2 rounded-xl border border-white/5 shadow-md">
+                  <p className="font-inter text-[#ded2c4] text-[clamp(0.82rem,1.05vw,1.05rem)] font-medium leading-snug line-clamp-2">
+                    {prod.descripcion}
+                  </p>
+                </div>
+              )}
+
+              {/* Opción secundaria (ej: Sin Papas: $5.000) compacta y elegante al lado */}
+              {prod.precio_secundario && (
+                <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 backdrop-blur-md self-start sm:self-center shadow-sm">
+                  <span className="text-amber-200/80 text-[clamp(10px,0.8vw,11px)] uppercase font-black tracking-wider">
+                    {prod.etiqueta_precio_secundario || 'Sin Papas'}:
+                  </span>
+                  <span className="font-mono-price font-black text-[#fff9f2] text-[clamp(0.95rem,1.2vw,1.3rem)]">
+                    {formatoPrecio(prod.precio_secundario)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Footer de la tarjeta para equilibrio visual */}
+        <div className="shrink-0 z-10" />
+      </div>
+    );
+  };
 
   if (loading || !activeCategory) {
     return (
@@ -418,87 +512,14 @@ function TVMenuboardContent() {
         </section>
 
         {/* --------------------------------------------------------
-            RIGHT STAGE: PRODUCTOS SECUNDARIOS (TARJETAS AJUSTABLES A LA VENTANA)
+            RIGHT STAGE: PRODUCTOS SECUNDARIOS (TARJETAS UNIFICADAS Y SIN VACÍOS)
            -------------------------------------------------------- */}
         <section className="w-full md:col-span-7 flex flex-col gap-[clamp(10px,1.5vh,18px)] justify-between flex-1 min-h-0">
           {/* TARJETA 2 (PRODUCTO SECUNDARIO 1 O PROMO COMBO PAPAS) */}
-          {secondaryProduct1 ? (
-            <div className="flex-1 min-h-0 rounded-2xl md:rounded-3xl p-[clamp(12px,1.5vw,22px)] shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between relative overflow-hidden group">
-              {/* Fondo de madera con toque oscuro elegante */}
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-102"
-                style={{
-                  backgroundImage: "url('/images/madera-bg.jpg')",
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#0d0906]/95 via-[#140c08]/90 to-[#0e0a07]/85 pointer-events-none" />
-
-              <div className="flex items-start justify-between gap-3 shrink-0 z-10">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 md:py-1 rounded-full bg-[#0e0a07]/80 backdrop-blur-sm text-amber-400 font-montserrat text-[clamp(10px,0.85vw,11px)] font-black uppercase tracking-wider border border-amber-500/20">
-                    {activeCategory.nombre}
-                  </span>
-                  {secondaryProduct1.es_destacado && (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-200 text-[clamp(10px,0.85vw,11px)] font-black uppercase tracking-wider backdrop-blur-sm">
-                      ⭐ Destacado
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-right">
-                  <span className="text-[clamp(9px,0.7vw,10px)] font-black uppercase tracking-widest text-[#a89685] block">
-                    PRECIO
-                  </span>
-                  <span className="font-mono-price font-black text-[clamp(1.5rem,2.4vw,2.5rem)] text-amber-400 tracking-tight leading-none drop-shadow">
-                    {formatoPrecio(secondaryProduct1.precio)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Contenido con imagen adaptable */}
-              <div className="my-auto flex items-center gap-[clamp(10px,1.5vw,20px)] z-10 py-1">
-                {secondaryProduct1.imagen_url && (
-                  <div className="relative w-[clamp(64px,8vw,110px)] h-[clamp(64px,8vw,110px)] rounded-xl md:rounded-2xl overflow-hidden shrink-0 bg-[#0e0a07]/80 flex items-center justify-center border border-white/5">
-                    <Image
-                      src={secondaryProduct1.imagen_url}
-                      alt={secondaryProduct1.nombre}
-                      fill
-                      sizes="(max-width: 768px) 80px, 110px"
-                      className="object-contain p-1.5 filter drop-shadow-md z-10"
-                    />
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-montserrat font-black text-[clamp(1.1rem,1.7vw,1.75rem)] text-[#fff9f2] uppercase tracking-tight mb-1 drop-shadow-sm line-clamp-1">
-                    {secondaryProduct1.nombre}
-                  </h3>
-
-                  {secondaryProduct1.descripcion && (
-                    <div className="bg-[#0e0a07]/85 backdrop-blur-md p-2.5 md:p-3 rounded-xl border border-white/5 shadow-md">
-                      <p className="font-inter text-[#ded2c4] text-[clamp(0.78rem,1vw,1rem)] font-medium leading-snug line-clamp-2 md:line-clamp-3">
-                        {secondaryProduct1.descripcion}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Precio secundario real si existe */}
-              {secondaryProduct1.precio_secundario && (
-                <div className="flex items-center gap-1.5 pt-0.5 text-xs z-10">
-                  <span className="text-[#a89685] uppercase font-bold text-[clamp(10px,0.8vw,11px)]">
-                    {secondaryProduct1.etiqueta_precio_secundario || 'Opción'}:
-                  </span>
-                  <span className="font-mono-price font-bold text-[#f3ece4] text-[clamp(0.85rem,1.1vw,1.1rem)]">
-                    {formatoPrecio(secondaryProduct1.precio_secundario)}
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : (
+          {renderSecondaryCard(
+            secondaryProduct1,
             /* TARJETA PROMO 1: COMBO PAPAS FRITAS */
-            <div className="flex-1 min-h-0 rounded-2xl md:rounded-3xl p-[clamp(12px,1.5vw,22px)] shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between relative overflow-hidden group border border-amber-500/20">
+            <div className="flex-1 min-h-0 rounded-2xl md:rounded-3xl p-[clamp(14px,1.8vw,24px)] shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between relative overflow-hidden group border border-amber-500/20">
               <div
                 className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-102 opacity-80"
                 style={{
@@ -508,115 +529,45 @@ function TVMenuboardContent() {
               <div className="absolute inset-0 bg-gradient-to-r from-[#0d0906]/95 via-[#180f08]/90 to-[#0e0a07]/85 pointer-events-none" />
               <div className="absolute -top-12 -right-12 w-48 h-48 bg-amber-500/10 blur-3xl rounded-full pointer-events-none" />
 
-              <div className="flex items-start justify-between gap-3 shrink-0 z-10">
+              <div className="flex items-center justify-between gap-3 shrink-0 z-10">
                 <span className="px-3 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-montserrat text-[clamp(10px,0.85vw,11px)] font-black uppercase tracking-wider border border-amber-500/30">
                   🍟 ¡Hazlo Combo!
                 </span>
-                <div className="text-right">
-                  <span className="text-[clamp(9px,0.7vw,10px)] font-black uppercase tracking-widest text-[#a89685] block">
-                    ADICIONAL
-                  </span>
-                  <span className="font-mono-price font-black text-[clamp(1.5rem,2.4vw,2.5rem)] text-amber-400 tracking-tight leading-none drop-shadow">
-                    +{formatoPrecio(precioPapasCombo)}
-                  </span>
-                </div>
               </div>
 
-              <div className="my-auto z-10 py-1">
-                <h3 className="font-montserrat font-black text-[clamp(1.1rem,1.7vw,1.75rem)] text-[#fff9f2] uppercase tracking-tight mb-1 line-clamp-1">
-                  Agrega Papas Fritas Crujientes
-                </h3>
-                <div className="bg-[#0e0a07]/85 backdrop-blur-md p-2.5 md:p-3 rounded-xl border border-amber-500/10 shadow-md">
-                  <p className="font-inter text-[#ded2c4] text-[clamp(0.78rem,1vw,1rem)] font-medium leading-snug line-clamp-2 md:line-clamp-3">
+              <div className="my-auto z-10 py-1 flex flex-col gap-2">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-montserrat font-black text-[clamp(1.2rem,2vw,2.1rem)] text-[#fff9f2] uppercase tracking-tight leading-tight line-clamp-1 flex-1 pr-2">
+                    Agrega Papas Fritas Crujientes
+                  </h3>
+                  <div className="text-right shrink-0">
+                    <span className="text-[clamp(9px,0.7vw,10px)] font-black uppercase tracking-widest text-[#a89685] block leading-none mb-1">
+                      ADICIONAL
+                    </span>
+                    <span className="font-mono-price font-black text-[clamp(1.6rem,2.5vw,2.7rem)] text-amber-400 tracking-tight leading-none drop-shadow">
+                      +{formatoPrecio(precioPapasCombo)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-[#0e0a07]/85 backdrop-blur-md px-3.5 py-1.5 md:py-2 rounded-xl border border-amber-500/10 shadow-md">
+                  <p className="font-inter text-[#ded2c4] text-[clamp(0.82rem,1.05vw,1.05rem)] font-medium leading-snug line-clamp-2">
                     Suma una porción dorada y crujiente de papas fritas a cualquiera de tus platos para disfrutar la experiencia completa Billy Burger.
                   </p>
                 </div>
               </div>
 
-              <div className="z-10 flex items-center gap-1.5 pt-0.5 text-[clamp(10px,0.8vw,11px)] text-amber-400 font-black uppercase tracking-wider">
+              <div className="shrink-0 z-10 flex items-center gap-1.5 pt-0.5 text-[clamp(10px,0.8vw,11px)] text-amber-400 font-black uppercase tracking-wider">
                 <span>✦ Pídelo directo en caja o por WhatsApp</span>
               </div>
             </div>
           )}
 
           {/* TARJETA 3 (PRODUCTO SECUNDARIO 2 O PROMO EVENTOS & RESERVAS) */}
-          {secondaryProduct2 ? (
-            <div className="flex-1 min-h-0 rounded-2xl md:rounded-3xl p-[clamp(12px,1.5vw,22px)] shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between relative overflow-hidden group">
-              {/* Fondo de madera con toque oscuro elegante */}
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-102"
-                style={{
-                  backgroundImage: "url('/images/madera-bg.jpg')",
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#0d0906]/95 via-[#140c08]/90 to-[#0e0a07]/85 pointer-events-none" />
-
-              <div className="flex items-start justify-between gap-3 shrink-0 z-10">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 md:py-1 rounded-full bg-[#0e0a07]/80 backdrop-blur-sm text-amber-400 font-montserrat text-[clamp(10px,0.85vw,11px)] font-black uppercase tracking-wider border border-amber-500/20">
-                    {activeCategory.nombre}
-                  </span>
-                  {secondaryProduct2.es_destacado && (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-200 text-[clamp(10px,0.85vw,11px)] font-black uppercase tracking-wider backdrop-blur-sm">
-                      ⭐ Destacado
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-right">
-                  <span className="text-[clamp(9px,0.7vw,10px)] font-black uppercase tracking-widest text-[#a89685] block">
-                    PRECIO
-                  </span>
-                  <span className="font-mono-price font-black text-[clamp(1.5rem,2.4vw,2.5rem)] text-amber-400 tracking-tight leading-none drop-shadow">
-                    {formatoPrecio(secondaryProduct2.precio)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Contenido con imagen adaptable */}
-              <div className="my-auto flex items-center gap-[clamp(10px,1.5vw,20px)] z-10 py-1">
-                {secondaryProduct2.imagen_url && (
-                  <div className="relative w-[clamp(64px,8vw,110px)] h-[clamp(64px,8vw,110px)] rounded-xl md:rounded-2xl overflow-hidden shrink-0 bg-[#0e0a07]/80 flex items-center justify-center border border-white/5">
-                    <Image
-                      src={secondaryProduct2.imagen_url}
-                      alt={secondaryProduct2.nombre}
-                      fill
-                      sizes="(max-width: 768px) 80px, 110px"
-                      className="object-contain p-1.5 filter drop-shadow-md z-10"
-                    />
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-montserrat font-black text-[clamp(1.1rem,1.7vw,1.75rem)] text-[#fff9f2] uppercase tracking-tight mb-1 drop-shadow-sm line-clamp-1">
-                    {secondaryProduct2.nombre}
-                  </h3>
-
-                  {secondaryProduct2.descripcion && (
-                    <div className="bg-[#0e0a07]/85 backdrop-blur-md p-2.5 md:p-3 rounded-xl border border-white/5 shadow-md">
-                      <p className="font-inter text-[#ded2c4] text-[clamp(0.78rem,1vw,1rem)] font-medium leading-snug line-clamp-2 md:line-clamp-3">
-                        {secondaryProduct2.descripcion}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Precio secundario real si existe */}
-              {secondaryProduct2.precio_secundario && (
-                <div className="flex items-center gap-1.5 pt-0.5 text-xs z-10">
-                  <span className="text-[#a89685] uppercase font-bold text-[clamp(10px,0.8vw,11px)]">
-                    {secondaryProduct2.etiqueta_precio_secundario || 'Opción'}:
-                  </span>
-                  <span className="font-mono-price font-bold text-[#f3ece4] text-[clamp(0.85rem,1.1vw,1.1rem)]">
-                    {formatoPrecio(secondaryProduct2.precio_secundario)}
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : (
+          {renderSecondaryCard(
+            secondaryProduct2,
             /* TARJETA PROMO 2: EVENTOS & CELEBRACIONES */
-            <div className="flex-1 min-h-0 rounded-2xl md:rounded-3xl p-[clamp(12px,1.5vw,22px)] shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between relative overflow-hidden group border border-amber-500/20">
+            <div className="flex-1 min-h-0 rounded-2xl md:rounded-3xl p-[clamp(14px,1.8vw,24px)] shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between relative overflow-hidden group border border-amber-500/20">
               <div
                 className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-102 opacity-80"
                 style={{
@@ -626,7 +577,7 @@ function TVMenuboardContent() {
               <div className="absolute inset-0 bg-gradient-to-r from-[#0d0906]/95 via-[#180f08]/90 to-[#0e0a07]/85 pointer-events-none" />
               <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-orange-500/10 blur-3xl rounded-full pointer-events-none" />
 
-              <div className="flex items-start justify-between gap-3 shrink-0 z-10">
+              <div className="flex items-center justify-between gap-3 shrink-0 z-10">
                 <span className="px-3 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-montserrat text-[clamp(10px,0.85vw,11px)] font-black uppercase tracking-wider border border-amber-500/30">
                   🎉 Eventos & Cumpleaños
                 </span>
@@ -635,18 +586,18 @@ function TVMenuboardContent() {
                 </span>
               </div>
 
-              <div className="my-auto z-10 py-1">
-                <h3 className="font-montserrat font-black text-[clamp(1.1rem,1.7vw,1.75rem)] text-[#fff9f2] uppercase tracking-tight mb-1 line-clamp-1">
+              <div className="my-auto z-10 py-1 flex flex-col gap-2">
+                <h3 className="font-montserrat font-black text-[clamp(1.2rem,2vw,2.1rem)] text-[#fff9f2] uppercase tracking-tight leading-tight line-clamp-1">
                   ¿Quieres que seamos parte de tu celebración?
                 </h3>
-                <div className="bg-[#0e0a07]/85 backdrop-blur-md p-2.5 md:p-3 rounded-xl border border-amber-500/10 shadow-md">
-                  <p className="font-inter text-[#ded2c4] text-[clamp(0.78rem,1vw,1rem)] font-medium leading-snug line-clamp-2 md:line-clamp-3">
+                <div className="bg-[#0e0a07]/85 backdrop-blur-md px-3.5 py-1.5 md:py-2 rounded-xl border border-amber-500/10 shadow-md">
+                  <p className="font-inter text-[#ded2c4] text-[clamp(0.82rem,1.05vw,1.05rem)] font-medium leading-snug line-clamp-2">
                     Cotiza con nosotros una experiencia llena de sabor para tus reuniones, cumpleaños y celebraciones familiares o de empresa.
                   </p>
                 </div>
               </div>
 
-              <div className="z-10 flex items-center justify-between pt-0.5">
+              <div className="shrink-0 z-10 flex items-center justify-between pt-0.5">
                 <div className="flex items-center gap-1.5 bg-[#0e0a07]/90 px-3 py-1 rounded-full border border-amber-500/30">
                   <Phone className="w-3 h-3 text-amber-400 shrink-0" />
                   <span className="text-[clamp(10px,0.85vw,12px)] font-mono font-black text-amber-300 tracking-wider">
@@ -663,7 +614,7 @@ function TVMenuboardContent() {
       </main>
 
       {/* ========================================================
-          3. FOOTER RUNNING TICKER (CINTA FLUIDA Y CEÑIDA AL TEXTO)
+          3. FOOTER RUNNING TICKER (CINTA SIN MENSAJE DE HORARIO)
          ======================================================== */}
       <footer className="h-[clamp(32px,4.5vh,42px)] bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-[#0d0906] flex items-center overflow-hidden shrink-0 shadow-2xl z-30 py-0">
         <div className="whitespace-nowrap animate-marquee flex items-center gap-[clamp(16px,2vw,32px)] pl-4 text-[clamp(13px,1.4vw,20px)] font-montserrat font-black uppercase tracking-tight leading-none">
@@ -673,11 +624,6 @@ function TVMenuboardContent() {
           </div>
           <span className="text-[#0d0906]/40 text-sm font-mono">✦</span>
           <span>RETIRO EN LOCAL & DELIVERY CURAUMA</span>
-          <span className="text-[#0d0906]/40 text-sm font-mono">✦</span>
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-[clamp(12px,1.1vw,16px)] h-[clamp(12px,1.1vw,16px)] text-[#0d0906] shrink-0" />
-            <span>LUN - DOM • 18:00 A 23:30 HRS (VIE/SÁB HASTA 00:30)</span>
-          </div>
           <span className="text-[#0d0906]/40 text-sm font-mono">✦</span>
 
           {mensajesTicker.map((msg, i) => (
@@ -694,11 +640,6 @@ function TVMenuboardContent() {
           </div>
           <span className="text-[#0d0906]/40 text-sm font-mono">✦</span>
           <span>RETIRO EN LOCAL & DELIVERY CURAUMA</span>
-          <span className="text-[#0d0906]/40 text-sm font-mono">✦</span>
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-[clamp(12px,1.1vw,16px)] h-[clamp(12px,1.1vw,16px)] text-[#0d0906] shrink-0" />
-            <span>LUN - DOM • 18:00 A 23:30 HRS (VIE/SÁB HASTA 00:30)</span>
-          </div>
           <span className="text-[#0d0906]/40 text-sm font-mono">✦</span>
 
           {mensajesTicker.map((msg, i) => (
